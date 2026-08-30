@@ -1,0 +1,16 @@
+{% if executed %}
+<div class="result-card approved">
+  <div class="verdict">Order submitted (paper)</div>
+  <div class="explanation">{{ order.symbol }} — {{ order.qty }} shares, {{ order.side.value }} — status: {{ order.status }}</div>
+  {% if was_overridden %}
+  <div class="explanation" style="color: var(--text-secondary); margin-top: 6px">
+    Logged as an override — it'll show up in your journal as a flagged trade you went ahead with.
+  </div>
+  {% endif %}
+</div>
+{% elif cancelled %}
+<div class="result-card neutral">
+  <div class="verdict">Trade cancelled</div>
+  <div class="explanation">No order was submitted. Logged to your journal.</div>
+</div>
+{% endif %}

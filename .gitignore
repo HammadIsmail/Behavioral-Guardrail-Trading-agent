@@ -1,0 +1,90 @@
+# ---- Secrets ----
+# Real Alpaca and Groq credentials live here. Never commit it.
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ---- Virtual environments ----
+.venv/
+venv/
+ENV/
+env/
+.python-version
+
+# ---- Testing / coverage ----
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+.cache
+nosetests.xml
+
+# ---- Type checkers / linters ----
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.pyre/
+.pytype/
+
+# ---- Editors / IDEs ----
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+
+# ---- OS noise ----
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ---- Logs / local databases ----
+*.log
+logs/
+*.sqlite
+*.sqlite3
+*.db
+
+# ---- Frontend (if a Node app is added alongside) ----
+node_modules/
+.next/
+out/
+.turbo/

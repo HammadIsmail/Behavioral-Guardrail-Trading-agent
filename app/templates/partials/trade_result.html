@@ -1,0 +1,63 @@
+{% if result.approved %}
+<div class="result-card approved">
+  <div class="verdict">Trade looks clean</div>
+  <div class="explanation">{{ result.explanation }}</div>
+  {# fieldset, not div: disabling it disables every button inside, which is
+     what stops a second click landing while the order is in flight. #}
+  <fieldset class="confirm-row">
+    <button
+      class="btn-primary"
+      hx-post="/fragments/trades/execute"
+      hx-vals='{"symbol": "{{ proposal.symbol }}", "qty": {{ proposal.qty }}, "side": "{{ proposal.side.value }}", "override": "false", "journal_entry_id": "{{ journal_entry_id }}"}'
+      hx-target="#trade-result"
+      hx-swap="innerHTML"
+      hx-disabled-elt="closest fieldset"
+      hx-sync="closest fieldset:drop"
+    >
+      <span class="btn-spinner" aria-hidden="true"></span>
+      <span class="btn-label">Execute (paper)</span>
+    </button>
+    <span class="pending-note">Submitting to Alpaca…</span>
+  </fieldset>
+</div>
+{% else %}
+<div class="result-card flagged">
+  <div class="verdict">This trade was flagged</div>
+  <div class="explanation">{{ result.explanation }}</div>
+  {% set triggered = result.flags | selectattr("triggered") | list %}
+  {% if triggered %}
+  <ul class="flag-list">
+    {% for flag in triggered %}
+    <li><span class="flag-name">{{ flag.rule_name | replace("_", " ") }}</span> — {{ flag.reason }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <fieldset class="confirm-row">
+    <button
+      class="btn-primary"
+      hx-post="/fragments/trades/execute"
+      hx-vals='{"symbol": "{{ proposal.symbol }}", "qty": {{ proposal.qty }}, "side": "{{ proposal.side.value }}", "override": "true", "journal_entry_id": "{{ journal_entry_id }}"}'
+      hx-target="#trade-result"
+      hx-swap="innerHTML"
+      hx-disabled-elt="closest fieldset"
+      hx-sync="closest fieldset:drop"
+    >
+      <span class="btn-spinner" aria-hidden="true"></span>
+      <span class="btn-label">Proceed anyway</span>
+    </button>
+    <button
+      class="btn-secondary"
+      hx-post="/fragments/trades/cancel"
+      hx-vals='{"journal_entry_id": "{{ journal_entry_id }}"}'
+      hx-target="#trade-result"
+      hx-swap="innerHTML"
+      hx-disabled-elt="closest fieldset"
+      hx-sync="closest fieldset:drop"
+    >
+      <span class="btn-spinner" aria-hidden="true"></span>
+      <span class="btn-label">Cancel</span>
+    </button>
+    <span class="pending-note">Working…</span>
+  </fieldset>
+</div>
+{% endif %}

@@ -1,0 +1,41 @@
+{% if gap and gap.executed_trades > 0 %}
+<div class="gap-panel">
+  <div class="gap-row">
+    <div>
+      <div class="gap-value">${{ "%.2f"|format(gap.passive_pl) }}</div>
+      <div class="label">If you'd held everything</div>
+    </div>
+    <div>
+      <div class="gap-value">${{ "%.2f"|format(gap.actual_pl) }}</div>
+      <div class="label">What your trading did</div>
+    </div>
+    <div>
+      <div class="gap-value {% if gap.gap > 0 %}negative{% elif gap.gap < 0 %}positive{% endif %}">
+        {% if gap.gap > 0 %}-{% elif gap.gap < 0 %}+{% endif %}${{ "%.2f"|format(gap.gap|abs) }}
+      </div>
+      <div class="label">Your behavior gap</div>
+    </div>
+  </div>
+  {% if gap.gap > 0 %}
+  <div class="gap-note">Selling cost you ${{ "%.2f"|format(gap.gap) }} versus sitting still.</div>
+  {% elif gap.gap < 0 %}
+  <div class="gap-note">Your exits beat holding by ${{ "%.2f"|format(gap.gap|abs) }}.</div>
+  {% else %}
+  <div class="gap-note">No gap yet — you haven't sold anything you bought.</div>
+  {% endif %}
+  {% if gap.unpriced_symbols %}
+  <div class="gap-note">Not priced in: {{ gap.unpriced_symbols|join(", ") }} (no market data).</div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if entries|length == 0 %}
+<div class="explanation" style="color: var(--text-secondary)">No trades proposed yet.</div>
+{% else %}
+  {% for entry in entries|reverse %}
+  <div class="journal-row">
+    <span>{{ entry.side.value }} {{ entry.qty }} {{ entry.symbol }}</span>
+    <span class="pill {{ entry.status }}">{{ entry.status }}</span>
+  </div>
+  {% endfor %}
+{% endif %}
