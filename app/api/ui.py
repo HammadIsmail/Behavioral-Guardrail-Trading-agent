@@ -141,23 +141,23 @@ def _unwrap_or_keep(submitted: str, stored: str, has_stored: bool) -> str:
 async def page_dashboard(
     request: Request,
     user: UserInDB | None = Depends(get_current_user_optional),
-    alpaca: AlpacaClient | None = Depends(get_alpaca_for_user_optional),
-    journal: JournalService = Depends(get_journal_for_user),
     agent: AgentService = Depends(get_agent_service),
 ):
     if not user:
         return RedirectResponse(url="/login", status_code=302)
     # When the user hasn't stored keys we render the page immediately with a
     # connect prompt; KPIs and the equity chart lazy-load and stand down.
+    has_keys = bool(
+        user.settings.alpaca_api_key and user.settings.alpaca_secret_key
+    )
     return templates.TemplateResponse(
         "pages/dashboard.html",
         {
             "request": request,
             "active": "dashboard",
             "agent": agent.status,
-            "summary": journal.get_summary(),
             "user": user,
-            "has_alpaca": alpaca is not None,
+            "has_alpaca": has_keys,
         },
     )
 
