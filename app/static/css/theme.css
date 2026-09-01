@@ -1,103 +1,576 @@
-/* Alpaca Guardrail Agent — theme matched to Alpaca's own dashboard:
-   near-black background, bright yellow accent, white/gray text. */
+/* =========================================================================
+   Alpaca Guardrail Agent — design system
+
+   Dense dark financial UI. Chart colours are NOT hand-picked: they come from
+   the validated data-viz palette (see docs/DESIGN.md), and the semantic
+   mapping below is deliberate.
+
+   One green and one red across the whole app. Two pairs (a UI green and a
+   chart green) is how dashboards end up meaning two different things by the
+   same colour.
+   ========================================================================= */
 
 :root {
+  /* ---- surfaces: near-black, Alpaca-matched ---- */
   --bg: #131313;
   --bg-elevated: #1c1c1c;
   --bg-card: #202020;
+  --bg-inset: #181818;
   --border: #2e2e2e;
+  --border-strong: #3a3a3a;
 
+  /* ---- ink ---- */
   --text-primary: #f5f5f5;
   --text-secondary: #a3a3a3;
   --text-muted: #6b6b6b;
 
-  --accent: #fcd72b;       /* Alpaca's signature yellow */
-  --accent-text: #131313;  /* text sitting on the yellow accent */
+  /* ---- brand accent: UI chrome only, never a data mark ---- */
+  --accent: #fcd72b;
+  --accent-text: #131313;
+  --accent-dim: rgba(252, 215, 43, 0.14);
 
-  --success: #3ecf8e;
-  --success-bg: #12291f;
-  --danger: #e5484d;
-  --danger-bg: #2a1516;
+  /* ---- data + status ------------------------------------------------------
+     From the validated dark palette. Each clears 4.5:1 on --bg-card, so they
+     are safe for small numeric text as well as for marks.
 
+       good     #0ca30c   4.9:1   gains, executed
+       critical #e66767   5.1:1   losses
+       serious  #ec835a   6.6:1   overridden  (NOT warning yellow: that
+                                  collides with the brand accent)
+       series-1 #3987e5   blocked, bars, equity curve
+     --------------------------------------------------------------------- */
+  --good: #0ca30c;
+  --good-bg: rgba(12, 163, 12, 0.13);
+  --critical: #e66767;
+  --critical-bg: rgba(230, 103, 103, 0.13);
+  --serious: #ec835a;
+  --serious-bg: rgba(236, 131, 90, 0.13);
+  --series-1: #3987e5;
+  --series-1-bg: rgba(57, 135, 229, 0.14);
+  --neutral: #898781;
+  --neutral-bg: rgba(137, 135, 129, 0.13);
+
+  /* ---- chart chrome ---- */
+  --gridline: #2c2c2a;
+  --axis: #383835;
+
+  /* ---- geometry ---- */
   --radius: 10px;
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --radius-sm: 6px;
+  --sidebar-w: 232px;
+  --topbar-h: 60px;
+
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace;
 }
 
 * { box-sizing: border-box; }
+
+html, body { height: 100%; }
 
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text-primary);
   font-family: var(--font-sans);
+  font-size: 14px;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
-.app-shell {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 24px 20px 60px;
+a { color: inherit; text-decoration: none; }
+
+/* =========================================================================
+   App shell: fixed sidebar + scrolling main
+   ========================================================================= */
+
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  min-height: 100vh;
 }
 
-.brand-header {
+.sidebar {
+  background: var(--bg-elevated);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 18px 18px 20px;
+}
+
+.brand-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: var(--accent-text);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 14px;
+  flex: none;
+}
+
+.brand-name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+.brand-env {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+}
+
+.nav { padding: 0 10px; display: flex; flex-direction: column; gap: 2px; }
+
+.nav-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 14px 8px 6px;
+}
+
+.nav-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 24px;
-}
-
-.brand-header .badge {
-  background: var(--accent);
-  color: var(--accent-text);
-  font-weight: 600;
-  font-size: 12px;
-  padding: 3px 8px;
-  border-radius: 6px;
-}
-
-.brand-header h1 {
-  font-size: 18px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 13px;
   font-weight: 500;
-  margin: 0;
+  transition: background 0.12s, color 0.12s;
 }
+
+.nav-item:hover { background: var(--bg-card); color: var(--text-primary); }
+
+.nav-item.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.nav-item .ico { width: 16px; text-align: center; flex: none; opacity: 0.9; }
+
+.nav-foot {
+  margin-top: auto;
+  padding: 14px 18px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+/* ---- topbar ---- */
+
+.main { min-width: 0; display: flex; flex-direction: column; }
+
+.topbar {
+  height: var(--topbar-h);
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 0 24px;
+}
+
+.page-title { font-size: 15px; font-weight: 600; margin: 0; }
+
+.topbar-stats {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.topbar-stat { text-align: right; }
+
+.topbar-stat .k {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.topbar-stat .v {
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.page { padding: 22px 24px 64px; }
+
+.page-intro {
+  color: var(--text-secondary);
+  font-size: 13px;
+  max-width: 74ch;
+  margin: -4px 0 20px;
+}
+
+/* =========================================================================
+   Cards & layout
+   ========================================================================= */
 
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 20px;
-  margin-bottom: 20px;
+  padding: 18px;
+  margin-bottom: 18px;
 }
 
-.card h2 {
-  font-size: 14px;
-  font-weight: 500;
+.card.flush { padding: 0; overflow: hidden; }
+.card.accented { border-color: var(--accent); }
+
+.card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.card h2, .card-head h2 {
+  font-size: 12px;
+  font-weight: 600;
   color: var(--text-secondary);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   margin: 0 0 14px;
 }
 
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
+.card-head h2 { margin: 0; }
+.card-head .spacer { margin-left: auto; }
 
-.stat-grid .value {
-  font-size: 20px;
-  font-weight: 500;
-}
-
-.stat-grid .label {
+.card-sub {
   font-size: 12px;
   color: var(--text-secondary);
-  margin-top: 2px;
+  margin: -8px 0 14px;
+  max-width: 70ch;
 }
 
-/* A fieldset, so htmx can disable the whole group in one go. Browsers give
-   fieldsets a border, padding and min-width: min-content — all reset here. */
-.chat-input-row {
+.grid { display: grid; gap: 18px; }
+.grid.two { grid-template-columns: 1fr 1fr; }
+.grid.wide-left { grid-template-columns: 1.6fr 1fr; }
+
+@media (max-width: 1080px) {
+  .grid.two, .grid.wide-left { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; flex-direction: row; align-items: center; overflow-x: auto; }
+  .nav { flex-direction: row; padding: 8px; }
+  .nav-label, .nav-foot { display: none; }
+}
+
+/* =========================================================================
+   Stat tiles, KPI row, hero figure
+   A handful of headline numbers is a KPI row — not a bar chart.
+   ========================================================================= */
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+
+.kpi { background: var(--bg-card); padding: 15px 16px; }
+
+.kpi .k {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+
+/* Proportional figures here; tabular is for columns that must align. */
+.kpi .v { font-size: 21px; font-weight: 600; letter-spacing: -0.02em; }
+.kpi .sub { font-size: 11px; color: var(--text-secondary); margin-top: 3px; }
+
+.hero {
+  font-size: 46px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.hero-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+}
+
+.pos { color: var(--good); }
+.neg { color: var(--critical); }
+.warn { color: var(--serious); }
+.mute { color: var(--text-muted); }
+
+/* =========================================================================
+   Tables — dense, aligned, tabular figures
+   ========================================================================= */
+
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+.table th {
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.table tbody tr:last-child td { border-bottom: none; }
+.table tbody tr:hover td { background: var(--bg-inset); }
+
+.table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.table .sym {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.table-empty {
+  padding: 30px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Change cells always carry a sign or arrow — colour never means alone. */
+.delta { font-variant-numeric: tabular-nums; font-weight: 600; }
+.delta .arrow { font-size: 10px; margin-right: 3px; }
+
+/* =========================================================================
+   Pills
+   ========================================================================= */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.pill.clean,      .pill.executed   { background: var(--good-bg);     color: var(--good); }
+.pill.blocked                      { background: var(--series-1-bg); color: var(--series-1); }
+.pill.flagged                      { background: var(--critical-bg); color: var(--critical); }
+.pill.overridden                   { background: var(--serious-bg);  color: var(--serious); }
+.pill.cancelled                    { background: var(--neutral-bg);  color: var(--neutral); }
+.pill.live                         { background: var(--good-bg);     color: var(--good); }
+.pill.waiting                      { background: var(--accent-dim);  color: var(--accent); }
+.pill.off                          { background: var(--neutral-bg);  color: var(--neutral); }
+.pill.source-agent                 { background: var(--accent-dim);  color: var(--accent); }
+.pill.source-user                  { background: var(--neutral-bg);  color: var(--neutral); }
+.pill.conviction                   { background: var(--series-1-bg); color: var(--series-1); }
+
+.dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; flex: none;
+}
+
+.pill.live .dot { animation: pulse 2s ease-in-out infinite; }
+
+@keyframes pulse { 50% { opacity: 0.35; } }
+
+/* =========================================================================
+   Bar chart, built in plain HTML
+   Magnitude by nominal category -> one hue, length carries the value.
+   Colouring these by value would re-encode what the bar already shows.
+   ========================================================================= */
+
+.bars { display: flex; flex-direction: column; gap: 12px; }
+
+.bar-row { display: grid; grid-template-columns: 1fr; gap: 5px; }
+
+.bar-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.bar-name { color: var(--text-primary); text-transform: capitalize; }
+.bar-value {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.bar-note { color: var(--text-muted); font-size: 11px; }
+
+.bar-track {
+  height: 8px;
+  background: var(--bg-inset);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* 4px rounded data-end, anchored to the baseline. */
+.bar-fill {
+  height: 100%;
+  background: var(--series-1);
+  border-radius: 0 4px 4px 0;
+  min-width: 3px;
+}
+
+/* Part-to-whole: one stacked bar, 2px surface gaps between segments,
+   direct labels below (mandatory at four series). */
+.stack {
+  display: flex;
+  gap: 2px;
+  height: 12px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg-inset);
+}
+
+.stack-seg { min-width: 2px; }
+.stack-seg.executed   { background: var(--good); }
+.stack-seg.blocked    { background: var(--series-1); }
+.stack-seg.overridden { background: var(--serious); }
+.stack-seg.cancelled  { background: var(--neutral); }
+.stack-seg.pending    { background: var(--border-strong); }
+
+.stack-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.stack-legend .item { display: flex; align-items: center; gap: 6px; }
+
+.swatch { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+.swatch.executed   { background: var(--good); }
+.swatch.blocked    { background: var(--series-1); }
+.swatch.overridden { background: var(--serious); }
+.swatch.cancelled  { background: var(--neutral); }
+.swatch.pending    { background: var(--border-strong); }
+
+.legend-value {
+  color: var(--text-primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* =========================================================================
+   Price / equity chart host
+   ========================================================================= */
+
+.chart { width: 100%; height: 260px; position: relative; }
+.chart.tall { height: 330px; }
+
+.chart-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 0 24px;
+}
+
+.range-row { display: flex; gap: 6px; margin-left: auto; }
+
+.range-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.range-btn:hover { border-color: var(--border-strong); color: var(--text-primary); }
+.range-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+/* =========================================================================
+   Forms & buttons
+   ========================================================================= */
+
+.field { margin-bottom: 14px; }
+
+.field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+input[type="text"], input[type="password"], input[type="email"], textarea, select {
+  width: 100%;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+input::placeholder, textarea::placeholder { color: var(--text-muted); }
+
+.chat-input-row, .inline-row {
   display: flex;
   gap: 8px;
   border: 0;
@@ -106,170 +579,235 @@ body {
   min-width: 0;
 }
 
-.chat-input-row input[type="text"] {
-  flex: 1;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px 14px;
-  color: var(--text-primary);
-  font-size: 14px;
-}
+.chat-input-row input[type="text"] { flex: 1; }
 
-.chat-input-row input[type="text"]:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-button.btn-primary {
-  background: var(--accent);
-  color: var(--accent-text);
-  border: none;
-  border-radius: var(--radius);
-  padding: 12px 20px;
+button.btn-primary, button.btn-secondary, button.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius-sm);
   font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-button.btn-primary:hover {
-  opacity: 0.9;
-}
-
-button.btn-secondary {
-  background: transparent;
-  color: var(--text-primary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 10px 16px;
   font-size: 13px;
+  padding: 10px 16px;
   cursor: pointer;
+  font-family: inherit;
+  border: 1px solid transparent;
 }
 
-button.btn-secondary:hover {
-  border-color: var(--text-secondary);
+button.btn-primary { background: var(--accent); color: var(--accent-text); }
+button.btn-primary:hover { opacity: 0.9; }
+
+button.btn-secondary { background: transparent; color: var(--text-primary); border-color: var(--border); }
+button.btn-secondary:hover { border-color: var(--border-strong); }
+
+button.btn-danger { background: var(--critical-bg); color: var(--critical); border-color: transparent; }
+button.btn-danger:hover { background: rgba(230, 103, 103, 0.2); }
+
+/* ---- toggle switch ---- */
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 0; padding: 0; margin: 0; min-width: 0;
 }
+
+.switch {
+  position: relative;
+  width: 42px; height: 24px;
+  border-radius: 999px;
+  background: var(--border-strong);
+  border: none;
+  cursor: pointer;
+  flex: none;
+  transition: background 0.16s;
+  padding: 0;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--text-primary);
+  transition: transform 0.16s;
+}
+
+.switch.on { background: var(--good); }
+.switch.on::after { transform: translateX(18px); background: #fff; }
+
+.switch-text { font-size: 13px; }
+.switch-text .state { font-weight: 600; }
+
+/* =========================================================================
+   Verdict cards (guardrail result)
+   ========================================================================= */
 
 .result-card {
   border-radius: var(--radius);
-  padding: 16px;
+  padding: 15px;
   margin-top: 14px;
   border: 1px solid;
 }
 
-.result-card.approved {
-  background: var(--success-bg);
-  border-color: var(--success);
-}
+.result-card.approved { background: var(--good-bg); border-color: var(--good); }
+.result-card.flagged  { background: var(--critical-bg); border-color: var(--critical); }
+.result-card.neutral  { background: var(--bg-inset); border-color: var(--border); }
 
-.result-card.flagged {
-  background: var(--danger-bg);
-  border-color: var(--danger);
-}
-
-/* Used when nothing was decided — an unparseable message or a cancelled
-   trade. Neither is a red-flag outcome, so it shouldn't read as one. */
-.result-card.neutral {
-  background: var(--bg-elevated);
-  border-color: var(--border);
-}
-
+.result-card .verdict { font-weight: 600; font-size: 13px; margin-bottom: 7px; }
+.result-card.approved .verdict { color: var(--good); }
+.result-card.flagged .verdict { color: var(--critical); }
 .result-card.neutral .verdict { color: var(--text-secondary); }
-
-.result-card .verdict {
-  font-weight: 600;
-  font-size: 13px;
-  margin-bottom: 8px;
-}
-
-.result-card.approved .verdict { color: var(--success); }
-.result-card.flagged .verdict { color: var(--danger); }
-
-.result-card .explanation {
-  font-size: 14px;
-  color: var(--text-primary);
-}
+.result-card .explanation { font-size: 13px; color: var(--text-primary); }
 
 .result-card .confirm-row {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-top: 14px;
-  border: 0;
-  padding: 0;
-  min-width: 0;
+  border: 0; padding: 0; min-width: 0;
 }
+
+.flag-list {
+  margin: 10px 0 0;
+  padding-left: 17px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.flag-list li { margin-bottom: 4px; }
+.flag-name { color: var(--text-primary); font-weight: 600; text-transform: capitalize; }
+
+/* =========================================================================
+   Journal & signals
+   ========================================================================= */
 
 .journal-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
+  gap: 10px;
+  padding: 11px 0;
   border-bottom: 1px solid var(--border);
   font-size: 13px;
 }
 
 .journal-row:last-child { border-bottom: none; }
+.journal-trade { display: flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
 
-.pill {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-weight: 600;
-}
-
-.pill.clean { background: var(--success-bg); color: var(--success); }
-.pill.flagged { background: var(--danger-bg); color: var(--danger); }
-.pill.executed { background: var(--success-bg); color: var(--success); }
-.pill.overridden { background: var(--danger-bg); color: var(--danger); }
-.pill.cancelled { background: var(--bg-elevated); color: var(--text-secondary); }
-
-/* Triggered rule detail under a flagged verdict. The LLM sentence explains
-   the feeling; this shows the deterministic reasons behind it. */
-.flag-list {
-  margin: 10px 0 0;
-  padding-left: 18px;
-  font-size: 13px;
+.journal-detail {
+  font-size: 12px;
   color: var(--text-secondary);
+  padding: 0 0 11px 2px;
+  margin-top: -3px;
+  line-height: 1.5;
+  border-bottom: 1px solid var(--border);
 }
 
-.flag-list li { margin-bottom: 4px; }
+.signal-list { display: flex; flex-direction: column; gap: 10px; }
 
-.flag-name {
-  color: var(--text-primary);
-  font-weight: 600;
-  text-transform: capitalize;
+.signal-row {
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
 }
 
-/* Behavior gap — held-everything vs. actually-traded. */
+.signal-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; }
+
+.signal-side {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.signal-side.buy  { background: var(--good-bg); color: var(--good); }
+.signal-side.sell { background: var(--critical-bg); color: var(--critical); }
+
+.signal-symbol { font-weight: 600; font-size: 14px; }
+.signal-reason { font-size: 12px; color: var(--text-secondary); margin-top: 6px; line-height: 1.45; }
+
+.diagnostics { margin-top: 14px; }
+.diagnostics summary { font-size: 12px; color: var(--text-secondary); cursor: pointer; }
+
+.verdict-buy  { color: var(--good); }
+.verdict-sell { color: var(--critical); }
+.verdict-hold, .verdict-no-data { color: var(--text-muted); }
+
+/* =========================================================================
+   Chat
+   ========================================================================= */
+
+.chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 220px;
+  margin-bottom: 16px;
+}
+
+.msg { display: flex; gap: 10px; max-width: 82%; }
+.msg.from-user { margin-left: auto; flex-direction: row-reverse; }
+
+.msg-body {
+  padding: 11px 14px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.msg.from-user .msg-body { background: var(--accent-dim); color: var(--text-primary); }
+.msg.from-agent .msg-body { background: var(--bg-inset); border: 1px solid var(--border); }
+
+.msg-meta { font-size: 10px; color: var(--text-muted); margin-top: 6px; }
+
+.chat-suggestions { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
+
+.suggestion {
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.suggestion:hover { border-color: var(--accent); color: var(--text-primary); }
+
+/* =========================================================================
+   Panels & notes
+   ========================================================================= */
+
 .gap-panel {
-  background: var(--bg-elevated);
+  background: var(--bg-inset);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px;
   margin-bottom: 16px;
 }
 
-.gap-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+.gap-panel.highlight { border-color: var(--accent); }
+
+.panel-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
 }
 
-.gap-value {
-  font-size: 18px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-
-.gap-value.positive { color: var(--success); }
-.gap-value.negative { color: var(--danger); }
-
-.gap-row .label {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-top: 2px;
-}
+.gap-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.gap-value { font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.gap-value.positive { color: var(--good); }
+.gap-value.negative { color: var(--critical); }
+.gap-row .label, .label { font-size: 11px; color: var(--text-secondary); margin-top: 3px; }
 
 .gap-note {
   font-size: 12px;
@@ -279,28 +817,44 @@ button.btn-secondary:hover {
   border-top: 1px solid var(--border);
 }
 
-/* ---- Loading / pending states ----
+.muted-note { font-size: 12px; color: var(--text-secondary); margin: 0 0 10px; }
+.agent-meta { font-size: 12px; color: var(--text-secondary); margin-top: 12px; }
+.agent-meta.error { color: var(--critical); }
 
-   Every action in this app waits on a network round trip: the guardrail
-   calls Alpaca two or three times and Groq once. Without visible pending
-   state the UI looks frozen, and nothing stops a second click landing
-   mid-flight. So each control shows a spinner and disables its group while
-   its request is open. */
-
-/* Buttons hold a spinner. It's display:none until needed, and a hidden flex
-   child creates no gap, so the button doesn't shift width when it appears. */
-button.btn-primary,
-button.btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
+.summary-row {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
 }
+
+.callout {
+  display: flex;
+  gap: 11px;
+  background: var(--series-1-bg);
+  border: 1px solid rgba(57, 135, 229, 0.35);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.callout .ico { flex: none; color: var(--series-1); }
+.callout strong { color: var(--text-primary); }
+
+/* =========================================================================
+   Loading & pending states
+
+   Every action waits on a network round trip. Without visible pending state
+   the UI looks frozen, and nothing stops a second click landing mid-flight.
+   ========================================================================= */
 
 .btn-spinner {
   display: none;
-  width: 13px;
-  height: 13px;
+  width: 13px; height: 13px;
   flex: none;
   border: 2px solid currentColor;
   border-right-color: transparent;
@@ -308,56 +862,31 @@ button.btn-secondary {
   animation: spin 0.6s linear infinite;
 }
 
-/* htmx puts .htmx-request on whatever triggered the request — the button
-   itself, or the form. The spinner is a descendant either way. */
-.htmx-request .btn-spinner {
-  display: inline-block;
-}
+/* htmx marks whatever triggered the request — button or form. The spinner is
+   a descendant either way. */
+.htmx-request .btn-spinner { display: inline-block; }
 
-button:disabled,
-fieldset:disabled button {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
+button:disabled, fieldset:disabled button { opacity: 0.55; cursor: not-allowed; }
+fieldset:disabled input[type="text"] { opacity: 0.55; }
 
-fieldset:disabled input[type="text"] {
-  opacity: 0.55;
-}
-
-/* The button actually mid-request stays bright even though its own fieldset
-   just disabled it, so it reads as "this one is working" rather than merely
-   greyed out. Needs to out-specify `fieldset:disabled button` above. */
-button.htmx-request,
-fieldset:disabled button.htmx-request {
+/* The button mid-request stays bright even though its own fieldset just
+   disabled it. Must out-specify `fieldset:disabled button`. */
+button.htmx-request, fieldset:disabled button.htmx-request {
   opacity: 1;
   cursor: progress;
 }
 
-/* Text cue beside a busy control: hidden until the sibling button, or the
-   form around it, is mid-request. */
-.pending-note {
-  display: none;
-  color: var(--text-secondary);
-  font-size: 13px;
-}
+.pending-note { display: none; color: var(--text-secondary); font-size: 12px; }
 
 button.htmx-request ~ .pending-note,
-form.htmx-request .pending-note {
-  display: inline;
-}
+form.htmx-request .pending-note { display: inline; }
 
-.htmx-indicator {
-  display: none;
-  color: var(--text-secondary);
-  font-size: 13px;
-}
+.htmx-indicator { display: none; color: var(--text-secondary); font-size: 12px; }
 
-/* Both forms matter: htmx marks the triggering element, but when hx-indicator
-   names a specific element it marks that element itself. */
+/* Both forms matter: htmx marks the trigger, but hx-indicator marks the
+   named element itself. */
 .htmx-request .htmx-indicator,
-.htmx-indicator.htmx-request {
-  display: inline;
-}
+.htmx-indicator.htmx-request { display: inline; }
 
 .htmx-indicator.subtle {
   font-size: 11px;
@@ -365,15 +894,173 @@ form.htmx-request .pending-note {
   text-transform: none;
   letter-spacing: 0;
   color: var(--text-muted);
-  margin-left: 8px;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* =========================================================================
+   Lazy-load placeholders and setup prompt
+   ========================================================================= */
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-inset);
+  border-radius: var(--radius-sm);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg, transparent, rgba(255,255,255,0.05), transparent
+  );
+  animation: shimmer 1.4s infinite;
+}
+.skeleton.kpi { height: 64px; }
+.skeleton.chart { height: 220px; }
+.skeleton.table { height: 160px; }
+.skeleton.panel { height: 120px; }
+
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+
+.setup-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0;
+}
+.setup-prompt .card-sub { margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after { animation: none; }
 }
 
-/* Keep the busy affordance, drop the motion. Dimmed disabled buttons and the
-   text cue still carry the message. */
+/* =========================================================================
+   Auth pages — standalone, centered, card-based
+   ========================================================================= */
+
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 24px;
+}
+
+.auth-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 30px;
+}
+
+.auth-logo .brand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-text);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 16px;
+  flex: none;
+}
+
+.auth-logo .brand-name {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.auth-logo .brand-env {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+}
+
+.auth-container {
+  width: 100%;
+  max-width: 400px;
+}
+
+.auth-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+}
+
+.auth-card h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 24px;
+  color: var(--text-primary);
+}
+
+.form-group {
+  margin-bottom: 18px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+
+.form-group input {
+  width: 100%;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.auth-card .btn-primary {
+  width: 100%;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.auth-link {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 20px;
+}
+
+.auth-link a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+  .auth-page { padding: 16px; }
+  .auth-card { padding: 20px 16px; }
+}
+
+/* Keep the busy affordance, drop the motion. */
 @media (prefers-reduced-motion: reduce) {
   .btn-spinner { animation: none; }
+  .pill.live .dot { animation: none; }
 }

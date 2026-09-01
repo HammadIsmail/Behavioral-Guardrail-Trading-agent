@@ -1,0 +1,33 @@
+<div class="card">
+  <div class="card-head">
+    <h2>Your positions</h2>
+    <span class="spacer"></span>
+    <span class="card-sub" style="margin:0">{{ account.positions|length }} open</span>
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Symbol</th>
+        <th class="num">Qty</th>
+        <th class="num">Price</th>
+        <th class="num">Market value</th>
+        <th class="num">Unrealised</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in account.positions %}
+      <tr>
+        <td class="sym">{{ p.symbol }}</td>
+        <td class="num">{{ "%.0f"|format(p.qty) }}</td>
+        <td class="num">${{ "%.2f"|format(p.current_price) }}</td>
+        <td class="num">${{ "%.2f"|format(p.market_value) }}</td>
+        <td class="num delta {{ 'pos' if p.unrealized_pl >= 0 else 'neg' }}">
+          <span class="arrow">{{ "▲" if p.unrealized_pl >= 0 else "▼" }}</span>{{ "+" if p.unrealized_pl >= 0 }}${{ "%.2f"|format(p.unrealized_pl) }}
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="table-empty">No open positions yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

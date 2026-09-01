@@ -11,8 +11,16 @@ class OrderSide(str, Enum):
     sell = "sell"
 
 
+class TradeSource(str, Enum):
+    """Who proposed the trade. The autonomous agent and a human at the
+    dashboard go through the identical guardrail, but their outcomes are
+    reported separately."""
+    agent = "agent"
+    user = "user"
+
+
 class TradeProposal(BaseModel):
-    """What the user (or agent parsing their message) wants to do."""
+    """What the user (or the strategy) wants to do."""
     symbol: str
     qty: float = Field(gt=0)
     side: OrderSide
@@ -35,6 +43,11 @@ class GuardrailResult(BaseModel):
     # size-based rule stood down.
     reference_price: float | None = None
 
+    @computed_field
+    @property
+    def triggered_rules(self) -> list[str]:
+        return [f.rule_name for f in self.flags if f.triggered]
+
 
 class ExecutedOrder(BaseModel):
     order_id: str
@@ -49,9 +62,9 @@ class JournalEntry(BaseModel):
     """One trade decision, from proposal through to its outcome.
 
     A single entry covers the whole life of one proposed trade: it's
-    created when the trade is proposed, then updated in place when the user
-    executes or cancels it. One proposal is one row, so the journal reflects
-    decisions rather than double-counting HTTP calls.
+    created when the trade is proposed, then updated in place when it is
+    executed, cancelled, or blocked. One proposal is one row, so the journal
+    reflects decisions rather than double-counting HTTP calls.
     """
     id: str = Field(default_factory=lambda: uuid4().hex)
     timestamp: datetime
@@ -62,9 +75,17 @@ class JournalEntry(BaseModel):
     was_overridden: bool = False
     executed: bool = False
     cancelled: bool = False
-    # Price the trade was logged at. Required to compute the behavior gap
-    # later — without it an executed trade can't be valued.
+    # The autonomous agent proposed this, the guardrail flagged it, and the
+    # agent stood down. Distinct from `cancelled`, which is a human choosing
+    # to back off. Blocked trades are what the counterfactual is computed on.
+    blocked: bool = False
+    # Price the trade was logged at. Required to compute the behavior gap and
+    # the guardrail's counterfactual impact.
     price: float | None = None
+    source: TradeSource = TradeSource.user
+    # Why the strategy wanted this trade. Empty for human proposals.
+    signal_reason: str = ""
+    user_id: str = ""
 
     @property
     def was_flagged(self) -> bool:
@@ -76,6 +97,8 @@ class JournalEntry(BaseModel):
         """Single label for the UI and the API, so neither re-derives it."""
         if self.executed:
             return "overridden" if self.was_overridden else "executed"
+        if self.blocked:
+            return "blocked"
         if self.cancelled:
             return "cancelled"
         return "flagged" if self.was_flagged else "clean"
@@ -83,9 +106,8 @@ class JournalEntry(BaseModel):
 
 class BehaviorGap(BaseModel):
     """
-    The number the whole project exists to show: what the user's trades
-    would have been worth if they had bought and never sold, versus what
-    their actual in-and-out trading produced.
+    What the user's trades would have been worth if they had bought and
+    never sold, versus what their actual in-and-out trading produced.
 
     `gap` is passive_pl - actual_pl, so a positive gap means the selling
     cost them money relative to sitting still.
@@ -100,4 +122,25 @@ class BehaviorGap(BaseModel):
 
     gap: float
     executed_trades: int
+    unpriced_symbols: list[str] = []
+
+
+class GuardrailImpact(BaseModel):
+    """
+    What the guardrail actually bought you, in dollars.
+
+    For every trade the agent proposed and the guardrail stopped, this values
+    that trade at the current price and asks what it would have produced.
+    `savings` is the negation of that: positive means the blocked trades
+    would have lost money, so standing down helped.
+    """
+    blocked_trades: int
+    blocked_buys: int
+    blocked_sells: int
+
+    avoided_cost: float      # capital the blocked buys would have deployed
+    avoided_pl: float        # P&L those blocked buys would have produced
+    savings: float           # -avoided_pl; positive = the guardrail helped
+
+    by_rule: dict[str, int] = {}
     unpriced_symbols: list[str] = []

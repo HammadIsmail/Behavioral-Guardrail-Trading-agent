@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Analytics · Guardrail{% endblock %}
+{% block heading %}Analytics{% endblock %}
+
+{% block content %}
+
+<p class="page-intro">
+  How the account is performing, and what the agent has actually been doing with it.
+</p>
+
+<div
+  id="analytics-body"
+  hx-get="/fragments/analytics?period={{ period }}"
+  hx-trigger="load"
+  hx-swap="innerHTML"
+>
+  <div class="muted-note">Loading…</div>
+</div>
+
+{% endblock %}

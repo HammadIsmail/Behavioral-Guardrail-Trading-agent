@@ -1,0 +1,27 @@
+{# Auto-trade switch. Posts the *opposite* of the current state, so the button
+   is the intent, not a guess about what the server thinks. #}
+<fieldset class="switch-row">
+  <button
+    class="switch {{ 'on' if agent.enabled }}"
+    role="switch"
+    aria-checked="{{ 'true' if agent.enabled else 'false' }}"
+    aria-label="Auto-trade"
+    hx-post="/fragments/agent/auto-trade?enabled={{ 'false' if agent.enabled else 'true' }}"
+    hx-target="#auto-trade"
+    hx-swap="innerHTML"
+    hx-disabled-elt="closest fieldset"
+    hx-sync="closest fieldset:drop"
+  ></button>
+  <div class="switch-text">
+    <span class="state">Auto-trade {{ "on" if agent.enabled else "off" }}</span>
+    <div class="label">
+      {% if agent.enabled %}
+        The agent proposes and places its own trades every
+        {{ agent.interval_seconds // 60 }} minutes while the market is open.
+      {% else %}
+        The agent is idle. Your journal and all history are untouched.
+      {% endif %}
+    </div>
+  </div>
+  <span class="pending-note">Switching…</span>
+</fieldset>

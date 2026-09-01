@@ -288,6 +288,9 @@ a spinner shown via `.htmx-request .btn-spinner`.
 
 ## ADR-012 — In-memory journal
 
+> **Superseded by [ADR-018](#adr-018--sqlite-journal).** Kept because the
+> reasoning explains what changed and why.
+
 **Context.** The journal needs storage. The behavior gap is more compelling the
 more history it has.
 
@@ -302,8 +305,13 @@ more history it has.
   provider in `core/dependencies.py`, nothing else (ADR-013).
 
 **Rejected.**
-- *SQLite now* — real value, but it's post-demo work. Recorded in
-  [STATUS.md](STATUS.md) as roadmap.
+- *SQLite now* — real value, but post-demo work.
+
+**What actually happened.** Adding the autonomous agent (ADR-014) turned this
+from a scoping choice into a defect: a loop running for days across restarts
+*is* the P&L record. Superseded within hours of the agent landing. The
+containment held, though — the swap touched exactly the two files this ADR
+predicted.
 
 ---
 
@@ -323,3 +331,353 @@ a service. No module outside `services/` imports a third-party SDK.
   pool.
 - Cost: singletons hold state across requests. Fine for this scope, would need
   revisiting under multi-user.
+
+---
+
+## ADR-014 — Point the guardrail at an autonomous agent, not only at a human
+
+**Context.** The project began as a human-in-the-loop advisor: a person proposes
+a trade, the guardrail checks it, the person confirms. Assessed against the
+hackathon's judging criteria, that shape had two structural problems.
+
+**P&L Performance** was unscoreable — the agent generated no trades of its own,
+so there was no trading activity to evaluate. Worse, the PRD's original NG-1
+explicitly excluded trade generation: the product was designed away from a
+judged criterion. **Technology Implementation** asks for an *autonomous* trading
+agent; requiring a human to propose every trade and click confirm is the
+opposite.
+
+The tempting fix was to bolt a stock-picker on the side and keep the guardrail as
+a separate feature. That would have made the project two half-products.
+
+**Decision.** Put an autonomous strategy *behind* the existing guardrail. The
+agent generates its own signals, and every one goes through the identical
+`GuardrailService.evaluate()` a human's trade goes through. The guardrail stops
+being human friction and becomes **the agent's own impulse control**.
+
+**Consequences.**
+- The agent trades unattended, so there is a real P&L record.
+- It is genuinely autonomous — no human in the loop at all.
+- The thesis got *stronger* rather than diluted. "Retail traders have behavioral
+  biases" is a known result. "Autonomous trading agents inherit the same
+  pathologies for structural reasons, and here's one policing itself" is a
+  sharper claim, and it's the one the code now demonstrates.
+- The guardrail's value became measurable: blocked trades can be priced
+  (ADR-020), which is what connects a behavioral thesis to a P&L number.
+- Cost: substantially more surface area — strategy, loop, scheduler, persistence,
+  agent API, dashboard panels. All of it unverified against live Alpaca at the
+  time of writing.
+- Cost: the honest framing now has to admit the strategy is not the contribution
+  (ADR-016), which is a harder story to tell than "our AI picks better stocks."
+
+**Rejected.**
+- *Keep it human-only and accept a zero on P&L* — a quarter of the rubric.
+- *Bolt on an unrelated stock picker* — two half-products, and it would have
+  left the guardrail still decorative.
+- *Have an LLM generate the trades* — would violate ADR-001's spirit, make the
+  strategy unexplainable, and put a non-deterministic component on the one path
+  that spends money.
+
+---
+
+## ADR-015 — The guardrail is absolute over the agent, advisory over a human
+
+**Context.** The guardrail's whole premise is that it never blocks — it adds
+friction and asks. With no human present, there is nobody to ask.
+
+**Decision.** A flagged trade proposed by the agent is **not executed**. The
+agent has no override. A flagged trade proposed by a human is still a question
+with a one-click *Proceed anyway*.
+
+**Consequences.**
+- The asymmetry has a principled basis, not just convenience: a person's
+  autonomy is theirs to keep, and taking it is what turns a coach into a nanny.
+  An autonomous agent has no autonomy worth protecting — it has a strategy, and
+  the guardrail's job is to be the thing the strategy cannot argue with.
+- Blocked trades become a clean counterfactual: nothing was executed, so
+  "what would it have done?" is answerable (ADR-020).
+- `blocked` is a distinct journal outcome from `cancelled`. Both are declined
+  trades, but one is a machine restrained and the other is a human reconsidering,
+  and conflating them would muddy both metrics.
+- Cost: a persistently flagged signal is never acted on. If the overtrading rule
+  latches, the agent goes quiet. That's the intended behavior, and it does mean
+  the guardrail can suppress P&L — which the impact metric will show honestly.
+
+**Rejected.**
+- *Downsize instead of block* — attractive for the oversized rule, and
+  meaningless for overtrading or revenge trading. A single policy that works for
+  all three is easier to explain and to defend.
+- *Defer and retry next cycle* — becomes "block" for a persistent signal and
+  "execute a bit later" for a transient one, which is the worst of both.
+- *Let the agent override after N consecutive flags* — an override the agent
+  grants itself is not a guardrail.
+
+---
+
+## ADR-016 — Dual moving-average momentum, chosen as a foil rather than for alpha
+
+**Context.** The agent needs a strategy. The obvious instinct is to pick
+something clever enough to make money and impress on P&L.
+
+**Decision.** Textbook 5/20-day moving-average crossover, long-only, ten liquid
+large caps. And say plainly in [STRATEGY.md](STRATEGY.md) that no edge is
+claimed.
+
+**Consequences.**
+- **Fully explainable.** Every signal reduces to two numbers a judge can verify
+  by eye, and each carries its own reasoning string. No fitted model, nothing
+  opaque, no LLM judgement.
+- **Its natural failure modes are exactly the three the rules detect** —
+  conviction scaling produces oversized positions, crossovers whipsaw into
+  overtrading, capital rotation looks like revenge trading. So the demo isn't a
+  strawman: the agent genuinely wants to misbehave.
+- Trades often enough to build a P&L record in days rather than months.
+- Needs only closing prices, which the free IEX feed provides.
+- Cost: it will whipsaw in range-bound markets and has no stop loss. Over five
+  trading days the P&L is noise and we say so.
+
+**Rejected.**
+- *Something with a plausible edge* — would invite the question we can't answer
+  honestly in five days ("does it work?") instead of the one we can ("does the
+  guardrail change what it does, and by how much?").
+- *An LLM-driven strategy* — unexplainable and non-deterministic on the path that
+  spends money.
+
+---
+
+## ADR-017 — The conviction ceiling deliberately exceeds the guardrail's limit
+
+**Context.** Position sizing scales with signal strength: base 8% of portfolio,
+up to 3× on the separation between the moving averages. That tops out at 24%,
+against a guardrail ceiling of 15%.
+
+The safe-looking choice is to cap sizing below 15% so the agent never trips its
+own rule.
+
+**Decision.** Leave the ceiling at 24%, above the limit.
+
+**Consequences.**
+- The guardrail is load-bearing rather than decorative. A rule that can never
+  fire proves nothing, and a demo where nothing is ever blocked has no subject.
+- It is not contrived. Conviction scaling is a real, widespread, professionally
+  respectable technique, and it is precisely the mechanism by which a
+  disciplined system talks itself into a position too large to hold through a
+  drawdown. The agent isn't sabotaged — it's doing something defensible that
+  happens to be a known trap.
+- Asserted in
+  `tests/test_strategy.py::test_conviction_scaling_can_exceed_the_guardrail_ceiling`,
+  so a future tuning change can't quietly make the guardrail inert.
+- Cost: the agent's strongest signals are the ones most likely to be blocked,
+  which will suppress P&L on exactly its highest-conviction ideas. That tension
+  is real and the impact metric reports it either way.
+
+**Rejected.**
+- *Cap sizing under the limit* — the agent never trips the rule, the guardrail
+  never fires, and the project's central claim goes untested.
+- *Lower the guardrail's 15% threshold to force flags* — dishonest; the threshold
+  has its own rationale in [BEHAVIORAL_RULES.md](BEHAVIORAL_RULES.md) and
+  shouldn't be reverse-engineered to produce a demo.
+
+---
+
+## ADR-018 — SQLite journal
+
+**Supersedes [ADR-012](#adr-012--in-memory-journal).**
+
+**Context.** The autonomous agent runs across days and restarts. An in-memory
+journal loses the trade record, the behavior gap and the guardrail impact on any
+restart — including an accidental file save under `--reload`.
+
+**Decision.** SQLite via stdlib `sqlite3`. `JournalService` keeps its exact
+interface; the storage swap is invisible to every caller. Default `db_path` is
+`:memory:` so tests get a clean journal without touching disk, and the provider
+passes the real path from settings.
+
+**Consequences.**
+- The P&L record survives restarts, which is a precondition for the agent being
+  worth running at all.
+- No new dependency, no migrations, no server.
+- ADR-013's containment claim was tested for real: the change touched
+  `journal_service.py` and its provider, and nothing else.
+- `run.py` now defaults `--reload` **off**, so an accidental save can't interrupt
+  a trading session.
+- Cost: two processes (web app and MCP server) write the same file, relying on
+  SQLite's locking. Fine at this write volume; noted as K-13.
+
+**Rejected.**
+- *Postgres* — a server to run and configure for a single-user demo.
+- *JSON file* — no concurrent-write story at all, and a partial write on crash
+  corrupts the whole record.
+
+---
+
+## ADR-019 — Expose our own MCP server rather than only consume Alpaca's
+
+**Context.** The judging criteria name Alpaca's MCP server among the expected
+technologies. The obvious reading is "call Alpaca through MCP."
+
+**Decision.** Ship an MCP server that exposes **the guardrail** — `evaluate_trade`,
+`execute_trade`, `get_behavior_gap`, `get_guardrail_impact`,
+`get_strategy_signals`, `run_agent_cycle`.
+
+**Consequences.**
+- The interesting thing this project has is not access to Alpaca — a REST client
+  is a solved problem. It's the behavioral check in front of the broker.
+  Exposing that over MCP means **any** agent, not just ours, can route its trades
+  through a behavioral guardrail before they reach a broker. That's the part
+  that outlives the hackathon.
+- `execute_trade` is guardrail-gated for the same reason the HTTP route is
+  (ADR-002): a check an MCP client can skip is not a check.
+- Tools run in-process against the same services and the same SQLite journal, so
+  a trade placed over MCP appears on the dashboard.
+- Cost: it's an addition to, not a use of, Alpaca's own MCP server. If the rules
+  require *consuming* theirs specifically, this doesn't satisfy that reading —
+  flagged in [STATUS.md](STATUS.md).
+
+**Rejected.**
+- *Only wrap Alpaca's MCP server* — would demonstrate integration and nothing
+  original, and would sit awkwardly beside our own `AlpacaClient`.
+
+---
+
+## ADR-020 — Counterfactual on blocked buys only
+
+**Context.** To put a number on the guardrail's value, price the trades it
+stopped and ask what they would have done. Blocked buys are unambiguous: no
+capital was deployed, so `qty × (current_price − blocked_price)` is exactly the
+P&L not taken.
+
+Blocked sells are not. Declining to sell means the position stayed on — and that
+position's outcome is *already inside* the account's real P&L.
+
+**Decision.** Compute the counterfactual for blocked buys. Count blocked sells,
+but attribute no P&L to them, and say so in the UI.
+
+**Consequences.**
+- The `savings` figure can't double count. Attributing a blocked sell's upside
+  here as well as in the account's unrealized P&L would inflate the guardrail's
+  apparent contribution — precisely the kind of flattering arithmetic that would
+  discredit the whole metric under scrutiny.
+- Sign convention is explicit: `savings = -avoided_pl`. Positive means the
+  blocked trades would have lost money. **A negative figure is displayed as
+  such** — restraint sometimes costs money, and hiding that would make the number
+  marketing rather than measurement.
+- Cost: the metric understates the guardrail when blocking an exit was the right
+  call.
+
+**Rejected.**
+- *Count blocked sells symmetrically* — double counting.
+- *Report only when the guardrail looks good* — indefensible.
+
+---
+
+## ADR-021 — Aggregate exposure is a guardrail rule, not just a strategy setting
+
+**Context.** The first live signal run exposed a hole. A real paper account
+reported **$100,000 portfolio value against $388,466 buying power** (~3.9×
+margin), and the strategy's opening signal set proposed four buys totalling
+**$69,614 — 70% of the book in one cycle**, with the per-cycle cap being the only
+thing that stopped all four going out at once.
+
+Every one of those trades was checked correctly. `OversizedPositionRule` caps a
+*single* trade at 15%; it has nothing to say about the seventh such trade. And
+the strategy sized against *buying power*, which at 4× portfolio value is barely
+a constraint at all. Ten symbols × up to 24% each is 240% invested, fully
+affordable, and individually compliant at every step.
+
+**Decision.** Add `OverexposureRule` — a fourth guardrail rule flagging any buy
+that would push total capital at work past 100% of portfolio value. Separately,
+teach `MomentumStrategy` the same ceiling so it sizes down into remaining
+headroom instead of re-proposing doomed buys.
+
+**Consequences.**
+- **The rule is the authority**, which means the limit also covers manual trades
+  and MCP-submitted trades — not just the agent's. Putting it only in the
+  strategy would have left every other path unprotected, and it's a behavioral
+  failure mode, so it belongs with the other behavioral rules.
+- The strategy's copy of the ceiling is a courtesy, not the enforcement. Without
+  it, a fully-invested agent would propose the same rejected buys every 15
+  minutes — burying the journal in blocks and inflating `avoided_cost` by
+  counting one intent dozens of times a day, which would quietly corrupt the
+  guardrail-impact metric (ADR-020).
+- The duplication is real and deliberate. `OverexposureRule.MAX_TOTAL_EXPOSURE_PCT`
+  and `strategy_max_total_exposure_pct` must be kept in step; both carry a comment
+  saying so. The alternative — having the strategy import the rule — would put a
+  dependency from strategy to guardrail that doesn't otherwise exist.
+- Sells are exempt everywhere. An over-invested book must always be able to get
+  out.
+- Cost: `market_value` rather than cost basis means a winning position consumes
+  more headroom than it cost, so a book that has run up throttles new entries.
+  Correct for solvency, mildly conservative for opportunity.
+- Cost: it caps upside. A levered momentum run in a good week would have posted a
+  bigger P&L number.
+
+**Rejected.**
+- *Strategy-only limit* — leaves manual and MCP paths unprotected, and a limit
+  the strategy can simply be reconfigured past isn't a guardrail.
+- *Cap sizing so the total can never approach the limit* — same mistake ADR-017
+  argues against. The rule should be reachable.
+- *Leave it and accept the variance* — considered seriously, since leverage cuts
+  both ways and a five-day window is noise either way. Rejected because an agent
+  whose headline pitch is behavioral discipline cannot ship with unbounded
+  leverage as an accident of not looking. The failure mode would have been
+  discovered by a judge, not by us.
+
+---
+
+## ADR-022 — Postgres when `DATABASE_URL` is set, SQLite otherwise
+
+**Context.** The project is being deployed to a serverless host. Serverless
+filesystems are ephemeral: a SQLite file written during one invocation is gone on
+the next cold start. Since the journal *is* the P&L record — the behavior gap and
+the guardrail counterfactual are both derived from it — a wiped file means the
+agent trades all week and can prove nothing.
+
+**Decision.** `JournalService` carries two backends behind one unchanged
+interface. Postgres is selected whenever `DATABASE_URL` is non-empty; SQLite
+otherwise.
+
+**Why key off the URL rather than `APP_ENV`.** Every serverless platform and
+managed Postgres provider — Neon, Vercel, Render, Fly, Heroku — injects
+`DATABASE_URL` automatically. Keying off its presence means a deploy needs no
+extra configuration and a local run needs none at all. Keying off `APP_ENV`
+would add a second thing to remember to set, and getting it wrong fails in the
+worst direction: a "production" run quietly writing to a disposable file.
+
+**Consequences.**
+- ADR-013's containment claim held a second time: the switch touched
+  `journal_service.py` and its provider, and nothing else. No caller knows which
+  database it is talking to.
+- **Connections are lazy.** A cold start pays no database round trip until
+  something actually reads or writes, and an unreachable host doesn't break
+  wiring or import.
+- **Postgres operations retry once on a dropped connection.**
+  `OperationalError` and `InterfaceError` trigger a reconnect. Serverless
+  containers get frozen and their sockets closed between invocations, so a
+  long-lived connection *will* go stale — and a trade decision shouldn't fail
+  over it. SQLite deliberately never retries: reconnecting an in-memory database
+  would silently discard everything in it.
+- Postgres needs an explicit `seq BIGSERIAL` because it has no implicit `rowid`.
+  Insertion order matters — the agent logs several trades inside one cycle and
+  they can share a timestamp — so ordering can't fall back to `timestamp`.
+- Timestamps are adapted per dialect: ISO text on SQLite (its implicit datetime
+  adapter is deprecated), native `TIMESTAMPTZ` on Postgres. Reads accept both.
+- `guardrail_result` stays `TEXT` rather than `JSONB`. Nothing queries inside it,
+  and TEXT keeps one read path. Worth revisiting if the journal ever needs
+  queries over rule flags.
+- Cost: two SQL dialects to keep in step, mitigated by sharing one column list
+  and one row-mapper.
+- Cost: `psycopg[binary]` is now a dependency even for local SQLite runs. It's
+  imported lazily, so a failed wheel wouldn't stop a local run, but it is in
+  `requirements.txt`.
+
+**Rejected.**
+- *SQLAlchemy* — would remove the dialect duplication, and costs a large
+  dependency plus a rewrite of a working storage layer four days from a deadline.
+  Right answer for a longer-lived project.
+- *`asyncpg` and an async journal* — `JournalService` is sync and called from
+  both async routes and the sync-ish agent loop. Making it async means touching
+  every caller for no benefit at this write volume.
+- *Postgres everywhere, including locally* — forces every contributor to run a
+  database to execute the test suite. SQLite in-memory is why the journal tests
+  need no fixtures.

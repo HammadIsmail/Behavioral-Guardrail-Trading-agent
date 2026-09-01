@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Market movers · Guardrail{% endblock %}
+{% block heading %}Market movers{% endblock %}
+
+{% block content %}
+
+<p class="page-intro">
+  What's running and what's falling. The agent only trades on its own momentum
+  signals — this board is context, not a recommendation.
+</p>
+
+<div id="movers-board" hx-get="/fragments/movers/board" hx-trigger="load" hx-swap="innerHTML">
+  <div class="muted-note">Loading movers…</div>
+</div>
+
+<div id="movers-positions" hx-get="/fragments/movers/positions" hx-trigger="load" hx-swap="innerHTML">
+  <div class="muted-note">Loading positions…</div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>What the strategy makes of it</h2>
+    <span class="spacer"></span>
+    <span id="signals-indicator" class="htmx-indicator subtle">reading…</span>
+  </div>
+  <div id="signals" hx-get="/fragments/signals" hx-trigger="load" hx-indicator="#signals-indicator">
+    <div class="muted-note">Loading…</div>
+  </div>
+</div>
+
+{% endblock %}

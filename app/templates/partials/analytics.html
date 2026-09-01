@@ -1,0 +1,120 @@
+<div class="kpis">
+  <div class="kpi">
+    <div class="k">Equity now</div>
+    <div class="v">${{ "%.2f"|format(account.equity) }}</div>
+    <div class="sub">
+      {% if equity and equity.points|length >= 2 %}
+        from ${{ "%.2f"|format(equity.start_equity) }}
+      {% else %}awaiting history{% endif %}
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="k">Period P&amp;L</div>
+    <div class="v {{ 'pos' if equity.total_pl >= 0 else 'neg' }}">
+      {{ "+" if equity.total_pl >= 0 }}${{ "%.2f"|format(equity.total_pl) }}
+    </div>
+    <div class="sub">{{ "+" if equity.total_pl_pct >= 0 }}{{ "%.2f"|format(equity.total_pl_pct) }}% over the window</div>
+  </div>
+  <div class="kpi">
+    <div class="k">Realised</div>
+    <div class="v {{ 'pos' if gap.realized_pl >= 0 else 'neg' }}">
+      {{ "+" if gap.realized_pl >= 0 }}${{ "%.2f"|format(gap.realized_pl) }}
+    </div>
+    <div class="sub">closed out of the journal</div>
+  </div>
+  <div class="kpi">
+    <div class="k">Unrealised</div>
+    <div class="v {{ 'pos' if gap.unrealized_pl >= 0 else 'neg' }}">
+      {{ "+" if gap.unrealized_pl >= 0 }}${{ "%.2f"|format(gap.unrealized_pl) }}
+    </div>
+    <div class="sub">still open</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>Equity curve</h2>
+    <div class="range-row">
+      <a class="range-btn {{ 'active' if period == '1W' }}" href="/analytics?period=1W">1W</a>
+      <a class="range-btn {{ 'active' if period == '1M' }}" href="/analytics?period=1M">1M</a>
+      <a class="range-btn {{ 'active' if period == '3M' }}" href="/analytics?period=3M">3M</a>
+      <a class="range-btn {{ 'active' if period == '1A' }}" href="/analytics?period=1A">1Y</a>
+    </div>
+  </div>
+  {% with tall = True %}{% include "partials/equity_chart.html" %}{% endwith %}
+</div>
+
+<div class="grid two">
+  <div class="card">
+    <h2>What happened to its proposals</h2>
+    <p class="card-sub">
+      Every trade the agent or you proposed, and where it ended up.
+    </p>
+    {% include "partials/outcome_mix.html" %}
+  </div>
+
+  <div class="card">
+    <h2>Which rule did the stopping</h2>
+    <p class="card-sub">
+      The behaviour the agent is most prone to, counted by the rule that caught it.
+    </p>
+    {% include "partials/blocks_by_rule.html" %}
+  </div>
+</div>
+
+<div class="grid two">
+  <div class="card">
+    <h2>Activity by symbol</h2>
+    {% if by_symbol %}
+    {% set peak = by_symbol.values()|map(attribute='total')|max %}
+    <div class="bars">
+      {% for symbol, counts in by_symbol.items() %}
+      <div class="bar-row">
+        <div class="bar-meta">
+          <span class="bar-name" style="text-transform:none">{{ symbol }}</span>
+          <span class="bar-note">
+            {{ counts.executed }} executed{% if counts.blocked %}, {{ counts.blocked }} blocked{% endif %}
+          </span>
+          <span class="bar-value">{{ counts.total }}</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: {{ (counts.total / peak * 100)|round(1) }}%"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="muted-note">No decisions recorded yet.</div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Agent vs you</h2>
+    <p class="card-sub">
+      Both go through the same guardrail. Only one of you can override it.
+    </p>
+    <table class="table">
+      <thead>
+        <tr><th></th><th class="num">Proposed</th><th class="num">Executed</th><th class="num">Stopped</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="sym">Agent</td>
+          <td class="num">{{ summary.agent_proposals }}</td>
+          <td class="num">{{ summary.agent_executed }}</td>
+          <td class="num">{{ summary.agent_blocked }}</td>
+        </tr>
+        <tr>
+          <td class="sym">You</td>
+          <td class="num">{{ summary.proposals - summary.agent_proposals }}</td>
+          <td class="num">{{ summary.executed_trades - summary.agent_executed }}</td>
+          <td class="num">{{ summary.cancelled_trades }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="gap-note">
+      Your "stopped" column counts trades you cancelled after being flagged. The
+      agent's counts trades it refused to make at all.
+    </div>
+  </div>
+</div>

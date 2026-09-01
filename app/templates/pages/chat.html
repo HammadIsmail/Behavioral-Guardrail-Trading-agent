@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Ask · Guardrail{% endblock %}
+{% block heading %}Ask about your decisions{% endblock %}
+
+{% block content %}
+
+<p class="page-intro">
+  Ask in plain language about your own trading history. Answers are grounded in
+  your journal — the figures you see are figures the journal produced.
+</p>
+
+<div class="callout">
+  <span class="ico">◆</span>
+  <div>
+    <strong>This can't trade.</strong>
+    It has no tools and no route to the order endpoint — it reads your history and
+    explains it. An assistant that can be talked into placing a trade is just a
+    trading bot with extra steps, so trades only ever go through the dashboard or
+    the agent, and every one is checked by the rules first.
+  </div>
+</div>
+
+<div class="card" x-data="{ q: '' }">
+  <div class="chat-suggestions">
+    {% for s in suggestions %}
+    <button type="button" class="suggestion"
+            @click="q = $el.textContent.trim(); $refs.input.focus()">{{ s }}</button>
+    {% endfor %}
+  </div>
+
+  <div id="chat-log" class="chat-log">
+    <div class="msg from-agent">
+      <div>
+        <div class="msg-body">
+          {% if summary.proposals %}
+            You've made {{ summary.proposals }} decisions so far — {{ summary.executed_trades }}
+            executed, {{ summary.blocked_trades }} stopped by the rules. Ask me anything
+            about them.
+          {% else %}
+            Your journal is empty so far. Once the agent has proposed a few trades,
+            ask me what it's been doing and why.
+          {% endif %}
+        </div>
+        <div class="msg-meta">Grounded in your journal</div>
+      </div>
+    </div>
+  </div>
+
+  <form
+    hx-post="/fragments/chat"
+    hx-target="#chat-log"
+    hx-swap="beforeend scroll:#chat-log:bottom"
+    hx-disabled-elt="find fieldset"
+    hx-sync="this:drop"
+    @htmx:after-request="q = ''"
+  >
+    <fieldset class="chat-input-row">
+      <input
+        type="text" name="question" x-ref="input" x-model="q"
+        placeholder="e.g. why did you block the Netflix trade?"
+        autocomplete="off" maxlength="500" required
+      />
+      <button class="btn-primary" type="submit">
+        <span class="btn-spinner" aria-hidden="true"></span>
+        <span class="btn-label">Ask</span>
+      </button>
+    </fieldset>
+    <span class="pending-note">Reading your journal…</span>
+  </form>
+</div>
+
+{% endblock %}

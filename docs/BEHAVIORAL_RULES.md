@@ -21,7 +21,6 @@ class GuardrailRule(ABC):
 ```
 
 `RuleContext` carries everything a rule may use:
-
 | Field | Source |
 |---|---|
 | `proposal` | The trade being evaluated |
@@ -73,6 +72,53 @@ resulting total position — buying 14% three times passes three times. Ignores
 volatility entirely; 15% of a utility and 15% of a biotech are not the same risk.
 
 **Tests:** `tests/test_guardrail_rules.py::TestOversizedPosition`
+
+---
+
+## `overexposure`
+
+**Bias:** the aggregate version of overconfidence — leverage arrived at by
+accumulation rather than decision.
+
+Nobody decides to be 240% invested. They make seven individually sensible
+purchases. `oversized_position` caps any *single* trade at 15% of the book and
+says nothing about the seventh such trade, which is a real blind spot: an Alpaca
+paper account carries roughly **4× buying power**, so a strategy that only checks
+affordability will happily stack reasonable positions into a materially levered
+one.
+
+**Triggers when:** a **buy** would push total capital at work past **100%** of
+portfolio value.
+
+```
+current  = Σ |position.market_value|
+total_pct = (current + qty × reference_price) / portfolio_value > 1.00
+```
+
+**Why 100%.** It's the one threshold that needs no justification: don't invest
+more than you have. Everything above it is borrowed money, and leverage amplifies
+a bad stretch exactly as much as a good one — which is the whole behavioral
+problem restated at the portfolio level.
+
+**Stands down when:** the trade is a **sell** (exiting reduces exposure by
+definition), `reference_price` is `None`, or `portfolio_value <= 0`.
+
+Uses `abs(market_value)` so a short position counts as exposure rather than
+netting against a long.
+
+**Why this was added.** It wasn't in the original three. It surfaced from live
+data: a real paper account showed **$100,000 portfolio value against $388,466
+buying power**, and the strategy's first live signal set proposed four buys
+totalling **$69,614 — 70% of the book in a single cycle.** Every one of those
+trades individually passed or failed on its own merits; nothing was watching the
+total. See ADR-021.
+
+**Known limitations.** Uses `market_value`, so a position that has run up
+consumes more headroom than it cost — correct for solvency, but it means a
+winning book throttles new entries. No notion of correlation: 100% spread across
+ten names and 100% in one sector are treated identically.
+
+**Tests:** `tests/test_guardrail_rules.py::TestOverexposure`
 
 ---
 
@@ -219,6 +265,76 @@ rather than hiding it.
 - **Not tax-lot accurate.** FIFO here is a modelling choice for the zero-gap
   property, not an accounting one.
 - **Resets with the process** — the journal is in-memory (ADR-012).
+
+---
+
+## The guardrail's impact
+
+The behavior gap measures the cost of *selling*. This measures the value of
+*not buying* — the trades the guardrail stopped.
+
+`services/behavior_gap.py::compute_guardrail_impact`, exposed at
+`GET /journal/guardrail-impact`.
+
+Only the autonomous agent produces blocked trades: it has no override, so a
+flagged signal simply doesn't execute (ADR-015). A human's declined trade is
+`cancelled` instead, and isn't counted here — a person reconsidering and a
+machine being restrained are different events.
+
+### How it's computed
+
+For each blocked **buy** with a recorded price:
+
+```
+avoided_cost += qty × blocked_price          # capital never deployed
+avoided_pl   += qty × (current_price − blocked_price)
+savings       = −avoided_pl
+```
+
+`savings` positive means the blocked trades would have lost money, so standing
+down was worth something.
+
+Blocked **sells** are counted but given no P&L figure. Declining to sell left the
+position on, and that position's outcome is *already* inside the account's real
+P&L — attributing it here as well would double count and inflate the guardrail's
+apparent contribution (ADR-020).
+
+Blocks are also attributed to the rules that caused them, so you can see which
+behavior the agent is actually prone to.
+
+### Worked example
+
+```
+Agent proposed: buy 100 NVDA @ $180  →  blocked (oversized_position, 24% of book)
+Price now $165
+
+avoided_cost = 100 × 180        = $18,000    capital not deployed
+avoided_pl   = 100 × (165 − 180) = −$1,500   what the trade would have produced
+savings                          =  $1,500   the value of standing down
+```
+
+Dashboard: *"Those blocked trades would have lost $1,500. The guardrail earned
+its keep."*
+
+### When restraint costs money
+
+If the price had gone to $200, `savings` would be `−$2,000` and the UI says so:
+*"Those blocked trades would have made $2,000. Restraint cost money this time."*
+
+Reporting only the flattering direction would make this marketing rather than
+measurement. Over a five-day window the figure is dominated by noise either way.
+
+### Known limitations
+
+- **Blocked sells carry no figure**, so the metric understates the guardrail when
+  blocking an exit was the right call.
+- **Values every block at today's price**, so a block from four days ago and one
+  from this morning are treated identically.
+- **A blocked trade changes what happens next.** Capital not deployed into a
+  blocked buy stays available for the next signal, which may itself have been
+  executed. The counterfactual prices the blocked trade in isolation and doesn't
+  model that knock-on — a limitation shared with essentially every simple
+  counterfactual of this shape.
 
 ---
 

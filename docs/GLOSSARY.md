@@ -7,10 +7,37 @@ local meaning — worth checking before assuming.
 
 ## Product & domain
 
-**Behavior gap** — The difference between what a trader would have earned
-holding every buy untouched and what their actual buying and selling earned.
-`passive_pl − actual_pl`. Positive means selling cost them money. Named after
-the DALBAR investor-return shortfall this product exists to make visible. Maths:
+**Autonomous agent** — The background loop in `services/agent.py` that generates
+its own signals and trades unattended. Distinct from the *guardrail*, which
+polices it, and from a human at the dashboard.
+
+**Guardrail impact** — What the guardrail bought you, in dollars: every trade it
+stopped, priced at today's market. `savings` positive means those trades would
+have lost money. The metric that connects a behavioral thesis to P&L.
+
+**Blocked** — The agent proposed a trade, the guardrail flagged it, and the agent
+stood down. **Not the same as cancelled**: blocked is a machine restrained with no
+option to override, cancelled is a human reconsidering. Only blocked trades enter
+the guardrail-impact counterfactual.
+
+**Conviction** — The strategy's own measure of signal strength: how far the
+5-day moving average sits from the 20-day. Multiplies position size up to 3×.
+The mechanism by which a disciplined strategy talks itself into an oversized
+position — and therefore the reason the guardrail has anything to catch.
+
+**Signal** — One trade the strategy wants, carrying the moving averages,
+conviction and a plain-language reason that produced it.
+
+**Cycle** — One pass of the autonomous loop: check the clock, read the account,
+generate signals, guardrail each, trade or block.
+
+**Universe** — The fixed list of symbols the strategy considers, plus anything
+currently held (so a position can always be exited even after a config change).
+
+**Behavior gap** — The difference between what would have been earned holding
+every buy untouched and what the actual buying and selling earned.
+`passive_pl − actual_pl`. Positive means selling cost money. Named after the
+DALBAR investor-return shortfall this product exists to make visible. Maths:
 [BEHAVIORAL_RULES.md](BEHAVIORAL_RULES.md).
 
 **DALBAR gap** — The industry-level version of the same idea: DALBAR's annual

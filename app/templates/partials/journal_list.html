@@ -1,41 +1,53 @@
-{% if gap and gap.executed_trades > 0 %}
-<div class="gap-panel">
-  <div class="gap-row">
-    <div>
-      <div class="gap-value">${{ "%.2f"|format(gap.passive_pl) }}</div>
-      <div class="label">If you'd held everything</div>
-    </div>
-    <div>
-      <div class="gap-value">${{ "%.2f"|format(gap.actual_pl) }}</div>
-      <div class="label">What your trading did</div>
-    </div>
-    <div>
-      <div class="gap-value {% if gap.gap > 0 %}negative{% elif gap.gap < 0 %}positive{% endif %}">
-        {% if gap.gap > 0 %}-{% elif gap.gap < 0 %}+{% endif %}${{ "%.2f"|format(gap.gap|abs) }}
-      </div>
-      <div class="label">Your behavior gap</div>
-    </div>
-  </div>
-  {% if gap.gap > 0 %}
-  <div class="gap-note">Selling cost you ${{ "%.2f"|format(gap.gap) }} versus sitting still.</div>
-  {% elif gap.gap < 0 %}
-  <div class="gap-note">Your exits beat holding by ${{ "%.2f"|format(gap.gap|abs) }}.</div>
-  {% else %}
-  <div class="gap-note">No gap yet — you haven't sold anything you bought.</div>
-  {% endif %}
-  {% if gap.unpriced_symbols %}
-  <div class="gap-note">Not priced in: {{ gap.unpriced_symbols|join(", ") }} (no market data).</div>
+{% if entries|length == 0 %}
+<div class="table-empty">No decisions recorded yet.</div>
+{% else %}
+{% if summary and summary.proposals %}
+<div class="summary-row">
+  {{ summary.proposals }} proposed · {{ summary.executed_trades }} executed ·
+  {{ summary.blocked_trades }} blocked · {{ summary.cancelled_trades }} cancelled ·
+  {{ summary.overridden_trades }} overridden
+  {% if summary.agent_proposals %}
+    <span class="mute">({{ summary.agent_proposals }} from the agent)</span>
   {% endif %}
 </div>
 {% endif %}
 
-{% if entries|length == 0 %}
-<div class="explanation" style="color: var(--text-secondary)">No trades proposed yet.</div>
-{% else %}
-  {% for entry in entries|reverse %}
-  <div class="journal-row">
-    <span>{{ entry.side.value }} {{ entry.qty }} {{ entry.symbol }}</span>
-    <span class="pill {{ entry.status }}">{{ entry.status }}</span>
-  </div>
-  {% endfor %}
+<table class="table">
+  <thead>
+    <tr>
+      <th>Time</th>
+      <th>By</th>
+      <th>Trade</th>
+      <th class="num">Price</th>
+      <th class="num">Outcome</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for entry in entries|reverse %}
+    {% set triggered = entry.guardrail_result.flags|selectattr("triggered")|list if entry.guardrail_result else [] %}
+    <tr>
+      <td class="num" style="text-align:left">{{ entry.timestamp.strftime("%d %b %H:%M") }}</td>
+      <td><span class="pill source-{{ entry.source.value }}">{{ entry.source.value }}</span></td>
+      <td class="sym">
+        <span class="{{ 'pos' if entry.side.value == 'buy' else 'neg' }}">{{ entry.side.value }}</span>
+        {{ entry.qty|int }} {{ entry.symbol }}
+      </td>
+      <td class="num">{% if entry.price %}${{ "%.2f"|format(entry.price) }}{% else %}—{% endif %}</td>
+      <td class="num"><span class="pill {{ entry.status }}">{{ entry.status }}</span></td>
+    </tr>
+    {% if entry.signal_reason or triggered %}
+    <tr>
+      <td colspan="5" class="journal-detail" style="padding-left:16px">
+        {% if entry.signal_reason %}
+        <div><span class="mute">Signal —</span> {{ entry.signal_reason }}</div>
+        {% endif %}
+        {% for flag in triggered %}
+        <div><span class="flag-name">{{ flag.rule_name|replace("_", " ") }}</span> — {{ flag.reason }}</div>
+        {% endfor %}
+      </td>
+    </tr>
+    {% endif %}
+    {% endfor %}
+  </tbody>
+</table>
 {% endif %}

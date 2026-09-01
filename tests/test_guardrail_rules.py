@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 from app.schemas.account import AccountSnapshot, Position
 from app.schemas.trade import OrderSide, TradeProposal
 from app.services.guardrail_rules import (
+    OverexposureRule,
     OversizedPositionRule,
     OvertradingRule,
     RevengeTradeRule,
@@ -25,6 +26,16 @@ def account(portfolio_value: float = 10_000.0, positions=None) -> AccountSnapsho
         portfolio_value=portfolio_value,
         equity=portfolio_value,
         positions=positions or [],
+    )
+
+
+def position(symbol: str, qty: float, price: float = 100.0) -> Position:
+    return Position(
+        symbol=symbol,
+        qty=qty,
+        market_value=qty * price,
+        unrealized_pl=0.0,
+        current_price=price,
     )
 
 
@@ -104,6 +115,110 @@ class TestOversizedPosition:
             reference_price=50.0,
         )
         assert self.rule.check(ctx).triggered is False
+
+
+class TestOverexposure:
+    rule = OverexposureRule()
+
+    def test_buy_inside_the_book_is_clean(self):
+        ctx = RuleContext(
+            proposal=proposal(qty=100),
+            account=account(
+                portfolio_value=100_000,
+                positions=[position("AAPL", 100, 200.0)],  # $20k deployed
+            ),
+            reference_price=100.0,  # +$10k -> 30% total
+        )
+        assert self.rule.check(ctx).triggered is False
+
+    def test_buy_that_would_lever_the_book_is_flagged(self):
+        """The gap OversizedPositionRule can't see: each trade is individually
+        reasonable, the total is not."""
+        ctx = RuleContext(
+            proposal=proposal(qty=100),
+            account=account(
+                portfolio_value=100_000,
+                positions=[position("AAPL", 475, 200.0)],  # $95k deployed
+            ),
+            reference_price=100.0,  # +$10k -> 105% total
+        )
+        flag = self.rule.check(ctx)
+        assert flag.triggered is True
+        assert "105%" in flag.reason
+
+    def test_exactly_fully_invested_is_allowed(self):
+        ctx = RuleContext(
+            proposal=proposal(qty=100),
+            account=account(
+                portfolio_value=100_000,
+                positions=[position("AAPL", 450, 200.0)],  # $90k deployed
+            ),
+            reference_price=100.0,  # +$10k -> exactly 100%
+        )
+        assert self.rule.check(ctx).triggered is False
+
+    def test_selling_is_never_overexposure(self):
+        """Exiting reduces exposure by definition."""
+        ctx = RuleContext(
+            proposal=proposal(side="sell", qty=1_000),
+            account=account(
+                portfolio_value=100_000,
+                positions=[position("AAPL", 600, 200.0)],  # already 120%
+            ),
+            reference_price=100.0,
+        )
+        assert self.rule.check(ctx).triggered is False
+
+    def test_shorts_count_as_exposure_not_offset(self):
+        ctx = RuleContext(
+            proposal=proposal(qty=100),
+            account=account(
+                portfolio_value=100_000,
+                positions=[
+                    position("AAPL", 300, 200.0),    # +$60k
+                    position("MSFT", -200, 200.0),   # -$40k market value
+                ],
+            ),
+            reference_price=100.0,  # 60 + 40 + 10 = 110% on absolute exposure
+        )
+        assert self.rule.check(ctx).triggered is True
+
+    def test_unknown_price_does_not_flag(self):
+        ctx = RuleContext(
+            proposal=proposal(qty=10_000),
+            account=account(portfolio_value=100_000),
+            reference_price=None,
+        )
+        assert self.rule.check(ctx).triggered is False
+
+    def test_empty_account_is_clean(self):
+        ctx = RuleContext(
+            proposal=proposal(),
+            account=account(portfolio_value=0),
+            reference_price=100.0,
+        )
+        assert self.rule.check(ctx).triggered is False
+
+    def test_first_buy_into_an_empty_book_is_clean(self):
+        ctx = RuleContext(
+            proposal=proposal(qty=100),
+            account=account(portfolio_value=100_000),
+            reference_price=100.0,
+        )
+        assert self.rule.check(ctx).triggered is False
+
+
+def test_all_rules_are_registered():
+    """A rule that isn't in ALL_RULES silently never runs."""
+    from app.services.guardrail_rules import ALL_RULES
+
+    names = {rule.name for rule in ALL_RULES}
+    assert names == {
+        "oversized_position",
+        "overexposure",
+        "revenge_trade",
+        "overtrading",
+    }
 
 
 class TestRevengeTrade:

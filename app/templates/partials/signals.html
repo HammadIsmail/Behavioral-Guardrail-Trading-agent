@@ -1,0 +1,47 @@
+{% if signals %}
+<div class="signal-list">
+  {% for signal in signals %}
+  <div class="signal-row">
+    <div class="signal-head">
+      <span class="signal-side {{ signal.side.value }}">{{ signal.side.value }}</span>
+      <span class="signal-symbol">{{ signal.symbol }}</span>
+      <span class="muted-note">{{ signal.qty|int }} @ ~${{ "%.2f"|format(signal.price) }}
+        (${{ "%.0f"|format(signal.notional) }})</span>
+      {% if signal.conviction > 1.5 %}
+      <span class="pill conviction">{{ "%.1f"|format(signal.conviction) }}x conviction</span>
+      {% endif %}
+    </div>
+    <div class="signal-reason">{{ signal.reason }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="muted-note">
+  No trades wanted right now — momentum is unchanged across the universe.
+</div>
+{% endif %}
+
+{% if diagnostics %}
+<details class="diagnostics">
+  <summary>What the strategy saw ({{ diagnostics|length }} symbols)</summary>
+  <table class="diag-table">
+    <thead>
+      <tr>
+        <th>Symbol</th><th>Short MA</th><th>Long MA</th><th>Price</th><th>Held</th><th>Verdict</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in diagnostics %}
+      <tr>
+        <td>{{ d.symbol }}</td>
+        <td>{% if d.short_ma %}{{ "%.2f"|format(d.short_ma) }}{% else %}—{% endif %}</td>
+        <td>{% if d.long_ma %}{{ "%.2f"|format(d.long_ma) }}{% else %}—{% endif %}</td>
+        <td>{% if d.price %}{{ "%.2f"|format(d.price) }}{% else %}—{% endif %}</td>
+        <td>{{ "yes" if d.held else "no" }}</td>
+        <td class="verdict-{{ d.verdict|replace(' ', '-') }}">{{ d.verdict }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</details>
+{% endif %}

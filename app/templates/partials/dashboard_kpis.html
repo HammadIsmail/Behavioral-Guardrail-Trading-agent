@@ -1,0 +1,37 @@
+<div class="kpis">
+  <div class="kpi">
+    <div class="k">Portfolio value</div>
+    <div class="v">${{ "%.2f"|format(account.portfolio_value) }}</div>
+    <div class="sub">
+      {% if equity and equity.points|length >= 2 %}
+        <span class="{{ 'pos' if equity.total_pl >= 0 else 'neg' }}">
+          {{ "+" if equity.total_pl >= 0 }}${{ "%.2f"|format(equity.total_pl) }}
+          ({{ "+" if equity.total_pl_pct >= 0 }}{{ "%.2f"|format(equity.total_pl_pct) }}%)
+        </span> this month
+      {% else %}awaiting history{% endif %}
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="k">Open positions</div>
+    <div class="v">{{ account.positions|length }}</div>
+    <div class="sub">{{ "%.0f"|format(deployed_pct) }}% of the book deployed</div>
+  </div>
+  <div class="kpi">
+    <div class="k">Guardrail stopped</div>
+    <div class="v" style="color: var(--series-1)">{{ impact.blocked_trades }}</div>
+    <div class="sub">
+      {% if impact.blocked_trades %}
+        worth <span class="{{ 'pos' if impact.savings >= 0 else 'neg' }}">{{ "+" if impact.savings >= 0 }}${{ "%.2f"|format(impact.savings) }}</span>
+      {% else %}nothing flagged yet{% endif %}
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="k">Behaviour gap</div>
+    <div class="v {{ 'neg' if gap.gap > 0 else ('pos' if gap.gap < 0 else '') }}">
+      {% if gap.gap > 0 %}-{% elif gap.gap < 0 %}+{% endif %}${{ "%.2f"|format(gap.gap|abs) }}
+    </div>
+    <div class="sub">
+      {% if gap.executed_trades %}cost of selling vs holding{% else %}nothing sold yet{% endif %}
+    </div>
+  </div>
+</div>

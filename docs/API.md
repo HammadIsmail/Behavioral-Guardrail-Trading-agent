@@ -191,6 +191,129 @@ can be less than `proposals`.
 
 Maths and worked example: [BEHAVIORAL_RULES.md](BEHAVIORAL_RULES.md).
 
+### `GET /journal/guardrail-impact`
+
+What the guardrail bought you, in dollars.
+
+```json
+{
+  "blocked_trades": 6,
+  "blocked_buys": 5,
+  "blocked_sells": 1,
+  "avoided_cost": 41200.0,
+  "avoided_pl": -412.5,
+  "savings": 412.5,
+  "by_rule": { "overtrading": 4, "oversized_position": 2 },
+  "unpriced_symbols": []
+}
+```
+
+- `avoided_pl` — what the blocked **buys** would have produced.
+- `savings` — `-avoided_pl`. **Positive means those trades would have lost
+  money**, so standing down was worth something. A negative figure means
+  restraint cost money, and is reported as such.
+- `avoided_cost` — capital the blocked buys would have deployed.
+- `by_rule` — which rules caused the blocks. Counts rule triggers, so one trade
+  flagged by two rules appears in both.
+- Blocked **sells** are counted but deliberately carry no P&L. Declining to sell
+  left the position on, and its outcome is already inside the account's real
+  P&L — attributing it here too would double count (ADR-020).
+
+### `GET /agent/status`
+
+```json
+{
+  "enabled": true,
+  "loop_running": true,
+  "market_open": true,
+  "interval_seconds": 900,
+  "universe": ["AAPL", "MSFT", "NVDA", "..."],
+  "cycles_completed": 14,
+  "total_proposed": 22,
+  "total_executed": 16,
+  "total_blocked": 6,
+  "last_run_at": "2026-08-31T15:45:02.113000+00:00",
+  "last_error": null,
+  "last_cycle": {
+    "ran_at": "2026-08-31T15:45:02.113000+00:00",
+    "market_open": true,
+    "signals_generated": 3,
+    "executed": 2,
+    "blocked": 1,
+    "skipped_cap": 0,
+    "errors": [],
+    "diagnostics": [{ "symbol": "AAPL", "verdict": "hold", "...": null }]
+  }
+}
+```
+
+`market_open` reflects the last cycle, so it is `null` before the first one.
+`loop_running` false with `enabled` true means the loop hasn't started yet or was
+stopped.
+
+### `POST /agent/run-once`
+
+Run one cycle immediately rather than waiting for the interval. Returns the
+`AgentCycleResult` shown above.
+
+This is the **same code path** the scheduled loop uses — not a demo shortcut.
+Trades placed go through the guardrail identically.
+
+When the market is closed it returns a result with `market_open: false` and
+everything zero. That's a completed cycle, not an error.
+
+### `POST /agent/start` · `POST /agent/stop`
+
+```json
+{ "started": true, "loop_running": true }
+```
+
+`start` is a no-op returning `started: false` if the loop is already running or
+`AGENT_ENABLED` is false.
+
+### `GET /agent/signals`
+
+What the strategy wants right now. **Read-only** — it does not touch the
+guardrail or Alpaca's order endpoint, so it's safe to poll while explaining the
+strategy.
+
+```json
+[
+  {
+    "symbol": "NVDA",
+    "side": "buy",
+    "qty": 138.0,
+    "price": 172.4,
+    "short_ma": 182.4,
+    "long_ma": 177.43,
+    "spread_pct": 0.028,
+    "conviction": 2.4,
+    "reason": "5-day average (182.40) is 2.8% above the 20-day (177.43) — momentum is up, sizing at 2.4x base on that separation"
+  }
+]
+```
+
+Exits are ordered before entries, so a sell frees buying power for a buy in the
+same cycle; within the entries, highest conviction first. `notional` is a
+property on the model and is **not** serialised — compute `qty * price`.
+
+### `GET /agent/diagnostics`
+
+Every symbol the strategy examined and what it concluded, including the holds.
+
+```json
+[
+  { "symbol": "AAPL", "short_ma": 231.1, "long_ma": 233.8, "price": 230.4,
+    "held": false, "verdict": "hold" },
+  { "symbol": "ZZZZ", "short_ma": null, "long_ma": null, "price": null,
+    "held": false, "verdict": "no data" }
+]
+```
+
+`verdict` is one of `buy`, `sell`, `hold`, `no data`. **A universe of all
+`no data` means the market-data feed returned nothing** — the agent will report
+healthy cycles and never trade. See V-3 and V-11 in [STATUS.md](STATUS.md).
+
 ### `GET /account`
 
 ```json

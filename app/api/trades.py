@@ -11,10 +11,11 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.core.dependencies import (
-    get_alpaca_client,
+    get_alpaca_for_user,
     get_explainer_service,
-    get_guardrail_service,
-    get_journal_service,
+    get_guardrail_for_user,
+    get_journal_for_user,
+    get_current_user,
 )
 from app.schemas.trade import (
     ExecutedOrder,
@@ -47,9 +48,9 @@ class ExecutionResponse(BaseModel):
 @router.post("/propose", response_model=ProposalResponse)
 async def propose_trade(
     proposal: TradeProposal,
-    guardrail: GuardrailService = Depends(get_guardrail_service),
+    guardrail: GuardrailService = Depends(get_guardrail_for_user),
     explainer: ExplainerService = Depends(get_explainer_service),
-    journal: JournalService = Depends(get_journal_service),
+    journal: JournalService = Depends(get_journal_for_user),
 ):
     result = await guardrail.evaluate(proposal)
     result.explanation = await explainer.explain(result)
@@ -75,9 +76,9 @@ async def execute_trade(
     proposal: TradeProposal,
     override: bool = False,
     journal_entry_id: str | None = None,
-    guardrail: GuardrailService = Depends(get_guardrail_service),
-    alpaca: AlpacaClient = Depends(get_alpaca_client),
-    journal: JournalService = Depends(get_journal_service),
+    guardrail: GuardrailService = Depends(get_guardrail_for_user),
+    alpaca: AlpacaClient = Depends(get_alpaca_for_user),
+    journal: JournalService = Depends(get_journal_for_user),
 ):
     """Execute a trade.
 

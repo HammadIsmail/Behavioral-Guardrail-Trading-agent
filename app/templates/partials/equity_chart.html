@@ -1,0 +1,66 @@
+{# Equity curve. Single series, so no legend box — the card title names it.
+   Data is rendered server-side into a script tag rather than fetched again. #}
+<div class="chart {{ 'tall' if tall }}" id="{{ chart_id|default('equity-chart') }}">
+  {% if not equity or equity.points|length < 2 %}
+  <div class="chart-empty">
+    Not enough history yet.<br />
+    <span class="mute">The curve appears once the account has a few days of equity.</span>
+  </div>
+  {% endif %}
+</div>
+
+{% if equity and equity.points|length >= 2 %}
+<script type="application/json" id="{{ chart_id|default('equity-chart') }}-data">
+[{% for p in equity.points %}{"time":{{ p.at.timestamp()|int }},"value":{{ "%.2f"|format(p.equity) }}}{{ "," if not loop.last }}{% endfor %}]
+</script>
+<script>
+(function () {
+  var hostId = {{ (chart_id|default('equity-chart'))|tojson }};
+  function draw() {
+    var host = document.getElementById(hostId);
+    var payload = document.getElementById(hostId + "-data");
+    if (!host || !payload || !window.LightweightCharts) return;
+    if (host.dataset.drawn === "1") return;
+    host.dataset.drawn = "1";
+
+    var data = JSON.parse(payload.textContent);
+    var css = getComputedStyle(document.documentElement);
+    var line = css.getPropertyValue("--series-1").trim() || "#3987e5";
+    var grid = css.getPropertyValue("--gridline").trim() || "#2c2c2a";
+    var muted = css.getPropertyValue("--text-muted").trim() || "#6b6b6b";
+
+    var chart = LightweightCharts.createChart(host, {
+      layout: { background: { type: "solid", color: "transparent" }, textColor: muted, fontSize: 11,
+                fontFamily: css.getPropertyValue("--font-sans").trim() },
+      /* Recessive grid: horizontal lines only, vertical ones are noise here. */
+      grid: { vertLines: { visible: false }, horzLines: { color: grid } },
+      rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.12, bottom: 0.08 } },
+      timeScale: { borderVisible: false, timeVisible: false, fixLeftEdge: true, fixRightEdge: true },
+      crosshair: {
+        mode: LightweightCharts.CrosshairMode.Magnet,
+        vertLine: { color: muted, width: 1, style: 3, labelBackgroundColor: line },
+        horzLine: { color: muted, width: 1, style: 3, labelBackgroundColor: line }
+      },
+      handleScale: false,
+      handleScroll: false,
+      autoSize: true
+    });
+
+    var series = chart.addAreaSeries({
+      lineColor: line,
+      lineWidth: 2,
+      topColor: "rgba(57, 135, 229, 0.28)",
+      bottomColor: "rgba(57, 135, 229, 0.02)",
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerRadius: 4
+    });
+    series.setData(data);
+    chart.timeScale().fitContent();
+  }
+
+  if (window.LightweightCharts) { draw(); }
+  else { window.addEventListener("load", draw); }
+})();
+</script>
+{% endif %}

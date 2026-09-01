@@ -1,0 +1,27 @@
+{# Blocks by rule. Magnitude across nominal categories, so: horizontal bars in
+   ONE hue. Colouring these by value would re-encode what bar length already
+   shows and waste the identity channel. #}
+{% if impact and impact.by_rule %}
+{% set peak = impact.by_rule.values()|max %}
+<div class="bars">
+  {% for rule, count in impact.by_rule.items() %}
+  <div class="bar-row">
+    <div class="bar-meta">
+      <span class="bar-name">{{ rule|replace("_", " ") }}</span>
+      <span class="bar-value">{{ count }}</span>
+    </div>
+    <div class="bar-track">
+      <div class="bar-fill" style="width: {{ (count / peak * 100)|round(1) }}%"></div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<div class="gap-note">
+  Which behaviour the agent is actually prone to. Every one of these was a trade
+  it wanted to make and didn't.
+</div>
+{% else %}
+<div class="muted-note">
+  Nothing blocked yet — so no rule has had to fire.
+</div>
+{% endif %}

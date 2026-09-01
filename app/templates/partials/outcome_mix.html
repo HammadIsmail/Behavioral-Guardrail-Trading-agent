@@ -1,0 +1,45 @@
+{# Part-to-whole: one stacked bar with 2px surface gaps, plus direct labels.
+   Four segments means labels are mandatory, not optional — identity is never
+   left to colour alone. Segments wear status meanings, not series colours,
+   because these categories genuinely mean good/bad. #}
+{% set total = summary.proposals or 0 %}
+{% if total %}
+{% set pending = total - summary.executed_trades - summary.blocked_trades - summary.cancelled_trades %}
+<div class="stack">
+  {% if summary.executed_trades %}
+  <div class="stack-seg executed" style="width: {{ (summary.executed_trades / total * 100)|round(2) }}%"></div>
+  {% endif %}
+  {% if summary.blocked_trades %}
+  <div class="stack-seg blocked" style="width: {{ (summary.blocked_trades / total * 100)|round(2) }}%"></div>
+  {% endif %}
+  {% if summary.cancelled_trades %}
+  <div class="stack-seg cancelled" style="width: {{ (summary.cancelled_trades / total * 100)|round(2) }}%"></div>
+  {% endif %}
+  {% if pending > 0 %}
+  <div class="stack-seg pending" style="width: {{ (pending / total * 100)|round(2) }}%"></div>
+  {% endif %}
+</div>
+
+<div class="stack-legend">
+  <span class="item"><span class="swatch executed"></span>Executed
+    <span class="legend-value">{{ summary.executed_trades }}</span></span>
+  <span class="item"><span class="swatch blocked"></span>Blocked
+    <span class="legend-value">{{ summary.blocked_trades }}</span></span>
+  <span class="item"><span class="swatch cancelled"></span>Cancelled
+    <span class="legend-value">{{ summary.cancelled_trades }}</span></span>
+  {% if pending > 0 %}
+  <span class="item"><span class="swatch pending"></span>Awaiting a decision
+    <span class="legend-value">{{ pending }}</span></span>
+  {% endif %}
+</div>
+
+{% if summary.overridden_trades %}
+<div class="gap-note">
+  {{ summary.overridden_trades }} of the executed trades were
+  <span class="warn">overridden</span> — flagged, then done anyway. Only a human
+  can do that; the agent has no override.
+</div>
+{% endif %}
+{% else %}
+<div class="muted-note">No proposals yet.</div>
+{% endif %}

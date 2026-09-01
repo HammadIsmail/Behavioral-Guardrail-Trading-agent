@@ -1,0 +1,27 @@
+{% if movers.source == "universe" %}
+<div class="callout">
+  <span class="ico">◆</span>
+  <div>
+    <strong>Showing the agent's own universe.</strong>
+    The market-wide screener isn't available on this data tier, so these are the
+    ten symbols the agent trades, ranked on their last daily close. Narrower than
+    the whole market — but real numbers rather than an empty board.
+  </div>
+</div>
+{% endif %}
+
+<div class="grid two">
+  <div class="card flush">
+    <div style="padding: 18px 16px 4px">
+      <h2 style="margin:0">Gainers</h2>
+    </div>
+    {% with rows = movers.gainers %}{% include "partials/movers_table.html" %}{% endwith %}
+  </div>
+
+  <div class="card flush">
+    <div style="padding: 18px 16px 4px">
+      <h2 style="margin:0">Losers</h2>
+    </div>
+    {% with rows = movers.losers %}{% include "partials/movers_table.html" %}{% endwith %}
+  </div>
+</div>

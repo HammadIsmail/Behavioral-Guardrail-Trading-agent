@@ -1,0 +1,110 @@
+<div class="card accented">
+  <div class="card-head">
+    <h2>What the guardrail bought you</h2>
+  </div>
+  {% if impact.blocked_trades %}
+  <div class="hero {{ 'pos' if impact.savings >= 0 else 'neg' }}">
+    {{ "+" if impact.savings >= 0 }}${{ "%.2f"|format(impact.savings|abs) }}
+  </div>
+  <div class="hero-label">
+    {% if impact.savings > 0 %}
+      The {{ impact.blocked_trades }} trades it stopped would have <strong>lost</strong>
+      ${{ "%.2f"|format(impact.savings) }}. Standing down was worth that much.
+    {% elif impact.savings < 0 %}
+      The {{ impact.blocked_trades }} trades it stopped would have <strong>made</strong>
+      ${{ "%.2f"|format(impact.savings|abs) }}. Restraint cost money this time — which
+      we report rather than hide.
+    {% else %}
+      The {{ impact.blocked_trades }} trades it stopped are flat so far.
+    {% endif %}
+  </div>
+
+  <div class="gap-row" style="margin-top: 22px">
+    <div>
+      <div class="gap-value">{{ impact.blocked_trades }}</div>
+      <div class="label">Trades stopped</div>
+    </div>
+    <div>
+      <div class="gap-value">${{ "%.0f"|format(impact.avoided_cost) }}</div>
+      <div class="label">Capital never deployed</div>
+    </div>
+    <div>
+      <div class="gap-value {{ 'negative' if impact.avoided_pl >= 0 else 'positive' }}">
+        {{ "+" if impact.avoided_pl >= 0 }}${{ "%.2f"|format(impact.avoided_pl) }}
+      </div>
+      <div class="label">What they'd have produced</div>
+    </div>
+  </div>
+
+  {% if impact.blocked_sells %}
+  <div class="gap-note">
+    {{ impact.blocked_sells }} blocked exit{{ "" if impact.blocked_sells == 1 else "s" }}
+    carry no figure. Declining to sell left the position on, and its outcome is
+    already inside the account's real P&amp;L — counting it here too would double it.
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="muted-note">
+    Nothing has been stopped yet. Once the guardrail flags a trade the agent wanted
+    to make, this will price it against the market and tell you what it would have done.
+  </div>
+  {% endif %}
+</div>
+
+<div class="grid two">
+  <div class="card">
+    <h2>Behaviour gap</h2>
+    <p class="card-sub">
+      What holding every buy untouched would have earned, against what the actual
+      buying and selling earned.
+    </p>
+    {% if gap.executed_trades %}
+    <div class="hero {{ 'neg' if gap.gap > 0 else ('pos' if gap.gap < 0 else 'mute') }}">
+      {% if gap.gap > 0 %}-{% elif gap.gap < 0 %}+{% endif %}${{ "%.2f"|format(gap.gap|abs) }}
+    </div>
+    <div class="hero-label">
+      {% if gap.gap > 0 %}
+        Selling cost you ${{ "%.2f"|format(gap.gap) }} versus sitting still.
+      {% elif gap.gap < 0 %}
+        Your exits beat holding by ${{ "%.2f"|format(gap.gap|abs) }}.
+      {% else %}
+        Nothing you bought has been sold, so the gap is exactly zero.
+      {% endif %}
+    </div>
+
+    <div class="gap-row" style="margin-top: 22px">
+      <div>
+        <div class="gap-value">${{ "%.2f"|format(gap.passive_pl) }}</div>
+        <div class="label">If you'd held everything</div>
+      </div>
+      <div>
+        <div class="gap-value">${{ "%.2f"|format(gap.actual_pl) }}</div>
+        <div class="label">What the trading did</div>
+      </div>
+      <div>
+        <div class="gap-value">{{ gap.executed_trades }}</div>
+        <div class="label">Trades counted</div>
+      </div>
+    </div>
+
+    <div class="gap-note">
+      If nothing is ever sold this number is exactly zero — both sides compute the
+      same thing. So any gap at all comes purely from selling decisions. It
+      separates <em>timing</em> from <em>stock picking</em>.
+    </div>
+    {% else %}
+    <div class="muted-note">
+      No executed trades to compare yet.
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Which rule did the stopping</h2>
+    {% include "partials/blocks_by_rule.html" %}
+    <div style="margin-top: 22px">
+      <h2>Outcome mix</h2>
+      {% include "partials/outcome_mix.html" %}
+    </div>
+  </div>
+</div>

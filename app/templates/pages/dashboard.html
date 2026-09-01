@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Guardrail{% endblock %}
+{% block heading %}Dashboard{% endblock %}
+
+{% block content %}
+
+{% if not has_alpaca %}
+{% include "partials/connect_prompt.html" %}
+{% endif %}
+
+<div
+  id="dashboard-kpis"
+  hx-get="/fragments/dashboard/kpis"
+  hx-trigger="load"
+  hx-swap="innerHTML"
+>
+  {% if has_alpaca %}
+  <div class="kpis">
+    <div class="skeleton kpi"></div>
+    <div class="skeleton kpi"></div>
+    <div class="skeleton kpi"></div>
+    <div class="skeleton kpi"></div>
+  </div>
+  {% endif %}
+</div>
+
+{% if has_alpaca %}
+<div class="grid wide-left">
+  <div class="card">
+    <div class="card-head">
+      <h2>Account equity</h2>
+      <span class="card-sub" style="margin:0">last 30 days</span>
+    </div>
+    <div
+      id="equity-chart-wrap"
+      hx-get="/fragments/dashboard/equity"
+      hx-trigger="load"
+      hx-swap="innerHTML"
+    >
+      <div class="skeleton chart"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Auto-trade</h2>
+    <div id="auto-trade">{% include "partials/auto_trade.html" %}</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>Autonomous agent</h2>
+    <span class="spacer"></span>
+    <span id="agent-indicator" class="htmx-indicator subtle">refreshing…</span>
+  </div>
+  <div id="agent-panel" hx-get="/fragments/agent" hx-trigger="load, every 30s" hx-indicator="#agent-indicator">
+    {% include "partials/agent_panel.html" %}
+  </div>
+</div>
+
+<div class="grid two">
+  <div class="card">
+    <div class="card-head">
+      <h2>What it wants to trade</h2>
+      <span class="spacer"></span>
+      <span id="signals-indicator" class="htmx-indicator subtle">reading the market…</span>
+    </div>
+    <p class="card-sub">
+      The strategy's current signals, with the numbers behind each one. Read-only —
+      nothing here is traded until a cycle runs.
+    </p>
+    <div id="signals" hx-get="/fragments/signals" hx-trigger="load" hx-indicator="#signals-indicator">
+      <div class="muted-note">Loading…</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Propose a trade yourself</h2>
+    <p class="card-sub">
+      Manual trades face the same guardrail the agent does — except you get the
+      final say, and it doesn't.
+    </p>
+    <form
+      hx-post="/fragments/trades/propose"
+      hx-target="#trade-result"
+      hx-swap="innerHTML"
+      hx-disabled-elt="find fieldset"
+      hx-sync="this:drop"
+    >
+      <fieldset class="chat-input-row">
+        <input type="text" name="message" placeholder="e.g. buy 50 shares of NVDA" autocomplete="off" required />
+        <button class="btn-primary" type="submit">
+          <span class="btn-spinner" aria-hidden="true"></span>
+          <span class="btn-label">Check</span>
+        </button>
+      </fieldset>
+      <span class="pending-note">Checking your account and running the guardrail…</span>
+    </form>
+    <div id="trade-result" aria-live="polite"></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>Recent decisions</h2>
+    <span class="spacer"></span>
+    <a class="range-btn" href="/decisions">See all →</a>
+  </div>
+  <div id="journal-list" hx-get="/fragments/journal?limit=8" hx-trigger="load, journalUpdated from:body">
+    <div class="muted-note">Loading…</div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

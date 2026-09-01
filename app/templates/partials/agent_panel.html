@@ -1,0 +1,62 @@
+{# Agent state. Auto-refreshes so a judge can watch it work. #}
+<div class="kpis">
+  <div class="kpi">
+    <div class="k">Cycles run</div>
+    <div class="v">{{ agent.cycles_completed }}</div>
+    <div class="sub">
+      {% if agent.last_run_at %}last {{ agent.last_run_at.strftime("%H:%M:%S") }} UTC
+      {% else %}not yet{% endif %}
+    </div>
+  </div>
+  <div class="kpi">
+    <div class="k">Trades proposed</div>
+    <div class="v">{{ agent.total_proposed }}</div>
+    <div class="sub">by the agent itself</div>
+  </div>
+  <div class="kpi">
+    <div class="k">Executed</div>
+    <div class="v pos">{{ agent.total_executed }}</div>
+    <div class="sub">passed the guardrail</div>
+  </div>
+  <div class="kpi">
+    <div class="k">Blocked</div>
+    <div class="v" style="color: var(--series-1)">{{ agent.total_blocked }}</div>
+    <div class="sub">it stopped itself</div>
+  </div>
+</div>
+
+<div class="agent-meta">
+  Every {{ agent.interval_seconds // 60 }} min · {{ agent.universe|length }} symbols ·
+  {% if agent.last_cycle %}
+    last pass: {{ agent.last_cycle.signals_generated }} signal{{ "" if agent.last_cycle.signals_generated == 1 else "s" }},
+    {{ agent.last_cycle.executed }} executed, {{ agent.last_cycle.blocked }} blocked{% if agent.last_cycle.skipped_cap %},
+    {{ agent.last_cycle.skipped_cap }} held back by the per-cycle cap{% endif %}{% if not agent.last_cycle.market_open %} · market was closed{% endif %}
+  {% else %}
+    no cycle yet
+  {% endif %}
+</div>
+
+{% if agent.last_cycle and agent.last_cycle.errors %}
+<ul class="flag-list">
+  {% for error in agent.last_cycle.errors %}<li>{{ error }}</li>{% endfor %}
+</ul>
+{% endif %}
+
+{% if agent.last_error %}
+<div class="agent-meta error">Last error: {{ agent.last_error }}</div>
+{% endif %}
+
+<fieldset class="confirm-row">
+  <button
+    class="btn-secondary"
+    hx-post="/fragments/agent/run-once"
+    hx-target="#agent-panel"
+    hx-swap="innerHTML"
+    hx-disabled-elt="closest fieldset"
+    hx-sync="closest fieldset:drop"
+  >
+    <span class="btn-spinner" aria-hidden="true"></span>
+    <span class="btn-label">Run one cycle now</span>
+  </button>
+  <span class="pending-note">Reading the market and running the guardrail…</span>
+</fieldset>

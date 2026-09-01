@@ -1,0 +1,28 @@
+<nav class="nav" hx-boost="true" hx-push-url="true" hx-indicator="#nav-indicator">
+  <div class="nav-label">Trading</div>
+  <a class="nav-item {{ 'active' if active == 'dashboard' }}" href="/">
+    <span class="ico">◧</span> Dashboard
+  </a>
+  <a class="nav-item {{ 'active' if active == 'movers' }}" href="/movers">
+    <span class="ico">⇅</span> Movers
+  </a>
+  <a class="nav-item {{ 'active' if active == 'analytics' }}" href="/analytics">
+    <span class="ico">▦</span> Analytics
+  </a>
+
+  <div class="nav-label">Guardrail</div>
+  <a class="nav-item {{ 'active' if active == 'decisions' }}" href="/decisions">
+    <span class="ico">⛨</span> Decisions
+  </a>
+  <a class="nav-item {{ 'active' if active == 'chat' }}" href="/chat">
+    <span class="ico">◌</span> Ask
+  </a>
+
+  <div class="nav-label">Account</div>
+  <a class="nav-item {{ 'active' if active == 'settings' }}" href="/settings">
+    <span class="ico">⚙</span> Settings
+  </a>
+  <a class="nav-item" href="/logout" data-hx-boost="false">
+    <span class="ico">↪</span> Sign out
+  </a>
+</nav>

@@ -140,6 +140,52 @@ class OvertradingRule(GuardrailRule):
         return _clean(self.name)
 
 
+class OverexposureRule(GuardrailRule):
+    """Flags a buy that would put more capital to work than the portfolio is
+    worth — i.e. onto borrowed money.
+
+    This is the aggregate counterpart to OversizedPositionRule. That rule caps
+    any *single* trade at 15% of the book, which says nothing about the seventh
+    such trade. Alpaca paper accounts carry roughly 4x buying power, so a
+    strategy that only ever checks affordability can stack individually
+    reasonable positions into a materially levered one.
+    """
+    name = "overexposure"
+    MAX_TOTAL_EXPOSURE_PCT = 1.0  # no margin: never invest more than you have
+
+    def check(self, ctx: RuleContext) -> RuleFlag:
+        # Selling reduces exposure; it can never trip this.
+        if ctx.proposal.side.value != "buy":
+            return _clean(self.name)
+
+        if ctx.account.portfolio_value <= 0:
+            return _clean(self.name)
+
+        # No price means no honest way to size the trade — same stance as
+        # OversizedPositionRule rather than guessing.
+        if not ctx.reference_price or ctx.reference_price <= 0:
+            return _clean(self.name)
+
+        # abs() so a short position counts as exposure rather than offsetting it.
+        current = sum(abs(p.market_value) for p in ctx.account.positions)
+        proposed = ctx.proposal.qty * ctx.reference_price
+        total_pct = (current + proposed) / ctx.account.portfolio_value
+
+        if total_pct > self.MAX_TOTAL_EXPOSURE_PCT:
+            return RuleFlag(
+                rule_name=self.name,
+                triggered=True,
+                reason=(
+                    f"this would put about {total_pct:.0%} of your portfolio "
+                    f"value to work at once — past "
+                    f"{self.MAX_TOTAL_EXPOSURE_PCT:.0%} you're trading on "
+                    f"borrowed money, which amplifies a bad stretch just as "
+                    f"much as a good one"
+                ),
+            )
+        return _clean(self.name)
+
+
 def _parse_filled_at(order: dict) -> datetime | None:
     """Alpaca timestamps are ISO-8601 with a Z suffix. A malformed or
     missing one means we can't reason about timing for that order, so it's
@@ -158,6 +204,7 @@ def _parse_filled_at(order: dict) -> datetime | None:
 
 ALL_RULES: list[GuardrailRule] = [
     OversizedPositionRule(),
+    OverexposureRule(),
     RevengeTradeRule(),
     OvertradingRule(),
 ]

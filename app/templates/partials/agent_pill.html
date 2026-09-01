@@ -1,0 +1,10 @@
+{# Live agent state, small enough to sit in the topbar on every page. #}
+{% if not agent.enabled %}
+  <span class="pill off">auto-trade off</span>
+{% elif agent.loop_running and agent.market_open %}
+  <span class="pill live"><span class="dot"></span>trading</span>
+{% elif agent.loop_running %}
+  <span class="pill waiting">market closed</span>
+{% else %}
+  <span class="pill waiting">starting</span>
+{% endif %}

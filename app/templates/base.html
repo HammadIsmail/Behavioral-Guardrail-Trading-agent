@@ -3,17 +3,57 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Alpaca Guardrail Agent</title>
+  <title>{% block title %}Guardrail Agent{% endblock %}</title>
   <link rel="stylesheet" href="/static/css/theme.css" />
   <script src="https://unpkg.com/htmx.org@2.0.3"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.14.3/dist/cdn.min.js"></script>
+  <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+  {% block head %}{% endblock %}
 </head>
 <body>
-  <div class="app-shell">
-    <div class="brand-header">
-      <span class="badge">PAPER</span>
-      <h1>Guardrail Agent</h1>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">G</div>
+      <div>
+        <div class="brand-name">Guardrail</div>
+        <div class="brand-env">PAPER TRADING</div>
+      </div>
     </div>
-    {% block content %}{% endblock %}
+
+    {% include "partials/nav.html" %}
+
+    <div class="nav-foot">
+      Paper trading only.<br />No real money is at risk.
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <h1 class="page-title">{% block heading %}Dashboard{% endblock %}</h1>
+      <div class="topbar-stats">
+        {% if account %}
+        <div class="topbar-stat">
+          <div class="k">Portfolio</div>
+          <div class="v">${{ "%.2f"|format(account.portfolio_value) }}</div>
+        </div>
+        <div class="topbar-stat">
+          <div class="k">Buying power</div>
+          <div class="v">${{ "%.2f"|format(account.buying_power) }}</div>
+        </div>
+        {% endif %}
+        {% if agent %}
+        <div id="topbar-agent">{% include "partials/agent_pill.html" %}</div>
+        {% endif %}
+      </div>
+    </header>
+
+    <main class="page">
+      {% block content %}{% endblock %}
+    </main>
   </div>
+
+</div>
 </body>
 </html>

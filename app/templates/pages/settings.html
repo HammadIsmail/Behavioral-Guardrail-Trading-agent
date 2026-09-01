@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Settings · Guardrail{% endblock %}
+{% block heading %}Settings{% endblock %}
+
+{% block content %}
+
+<div class="grid two">
+  <div class="card">
+    <h2>Auto-trade</h2>
+    <p class="card-sub">
+      When on, the agent proposes and places its own trades on a schedule, with no
+      human in the loop. Every proposal still goes through the guardrail — and
+      unlike you, the agent gets no override.
+    </p>
+    <div id="auto-trade">{% include "partials/auto_trade.html" %}</div>
+
+    <div class="gap-note">
+      Turning it off stops the loop only. Your journal, behaviour gap and guardrail
+      figures are untouched and keep reading correctly.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Strategy</h2>
+    <p class="card-sub">
+      Read-only for now — these come from the environment. Documented in
+      <code>docs/STRATEGY.md</code>.
+    </p>
+    <table class="table">
+      <tbody>
+        <tr><td>Signal</td><td class="num">{{ strategy.short_window }}/{{ strategy.long_window }}-day moving average</td></tr>
+        <tr><td>Base position size</td><td class="num">{{ "%.0f"|format(strategy.base_position_pct * 100) }}% of portfolio</td></tr>
+        <tr><td>Conviction ceiling</td><td class="num">{{ "%.1f"|format(strategy.max_conviction_multiple) }}×</td></tr>
+        <tr><td>Total exposure cap</td><td class="num">{{ "%.0f"|format(strategy.max_total_exposure_pct * 100) }}%</td></tr>
+        <tr><td>Cycle interval</td><td class="num">{{ agent.interval_seconds // 60 }} min</td></tr>
+        <tr><td>Trades per cycle</td><td class="num">{{ max_per_cycle }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Guardrail rules</h2>
+  <p class="card-sub">
+    Fixed, checkable arithmetic. No language model is involved in any of these
+    decisions — it only writes the explanation afterwards.
+  </p>
+  <table class="table">
+    <thead>
+      <tr><th>Rule</th><th>Fires when</th><th class="num">Threshold</th></tr>
+    </thead>
+    <tbody>
+      {% for rule in rules %}
+      <tr>
+        <td class="sym" style="text-transform: capitalize">{{ rule.name|replace("_", " ") }}</td>
+        <td>{{ rule.description }}</td>
+        <td class="num">{{ rule.threshold }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card" id="alpaca-connection">
+  {% include "partials/alpaca_connection.html" %}
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>Environment</h2>
+  </div>
+  <table class="table">
+    <tbody>
+      <tr><td>Journal storage</td><td class="num">{{ journal_dialect }}</td></tr>
+      <tr><td>Explanations</td><td class="num">{{ "Groq" if groq_configured else "deterministic fallback" }}</td></tr>
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

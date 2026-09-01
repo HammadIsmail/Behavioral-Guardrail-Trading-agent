@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Your decisions · Guardrail{% endblock %}
+{% block heading %}Your decisions{% endblock %}
+
+{% block content %}
+
+<p class="page-intro">
+  Two questions, both answered from your own journal: what did the trades you were
+  stopped from making cost or save you, and what did selling cost you against
+  simply holding?
+</p>
+
+<div id="decisions-cards" hx-get="/fragments/decisions" hx-trigger="load" hx-swap="innerHTML">
+  <div class="muted-note">Loading…</div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>Full journal</h2>
+    <span class="spacer"></span>
+    <span id="journal-indicator" class="htmx-indicator subtle">updating…</span>
+  </div>
+  <p class="card-sub">
+    Every decision, including the ones that never became a trade. A cancel and a
+    block are outcomes, not absences.
+  </p>
+  <div id="journal-list" hx-get="/fragments/journal" hx-trigger="load, journalUpdated from:body" hx-indicator="#journal-indicator">
+    <div class="muted-note">Loading…</div>
+  </div>
+</div>
+
+{% endblock %}

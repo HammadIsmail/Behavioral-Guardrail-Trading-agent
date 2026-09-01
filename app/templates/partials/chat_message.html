@@ -1,0 +1,14 @@
+{# One exchange, appended to the log. The question is echoed back so the pair
+   reads as a conversation even though each request is independent. #}
+<div class="msg from-user">
+  <div class="msg-body">{{ reply.question }}</div>
+</div>
+<div class="msg from-agent">
+  <div>
+    <div class="msg-body">{{ reply.answer }}</div>
+    <div class="msg-meta">
+      {{ reply.asked_at.strftime("%H:%M") }} UTC
+      {% if not reply.llm_used %}· read straight from your journal (Groq unavailable){% endif %}
+    </div>
+  </div>
+</div>

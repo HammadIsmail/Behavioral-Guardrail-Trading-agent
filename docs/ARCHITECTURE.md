@@ -34,6 +34,8 @@ service. `api/` receives them already built via `Depends()`.
 | `services/alpaca_client.py` | Every HTTP call to Alpaca (trading + market data) | Interpret behavior |
 | `services/guardrail_rules.py` | Behavioral logic | Do any I/O, import `AlpacaClient` |
 | `services/guardrail_service.py` | Gathering context, running rules, deciding | Call an LLM |
+| `services/strategy.py` | Momentum signals and position sizing | Do I/O in `MomentumStrategy`; know about the guardrail |
+| `services/agent.py` | The autonomous loop: signals → guardrail → trade or block | Contain rule or strategy logic |
 | `services/explainer.py` | Every call to Groq | Influence `approved` |
 | `services/trade_parser.py` | Natural language → `TradeProposal` | Know about Alpaca |
 | `services/behavior_gap.py` | Passive-vs-actual maths | Fetch prices (the service class does; the function doesn't) |
@@ -102,6 +104,48 @@ Step 3 is the whole product. Step 4 cannot reach back into step 3.
 7. Response + HX-Trigger: journalUpdated       → journal panel refreshes
 ```
 
+## Request flow: the autonomous cycle
+
+`AgentService.run_cycle()` — the scheduled loop's body, and the same code path
+`POST /agent/run-once` uses. There is no separate demo path.
+
+```
+1. alpaca.get_clock()
+       └── closed (or unavailable) → record the cycle, trade nothing, return
+       ▼
+2. alpaca.get_account_snapshot()
+       ▼
+3. StrategyService.generate(account)
+       ├── get_daily_closes(universe ∪ held)     → 5/20-day moving averages
+       ├── get_latest_prices(...)
+       └── MomentumStrategy.generate_signals()   → signals + per-symbol verdicts
+              exits ordered first, then entries by conviction
+       ▼
+4. for each signal, until the per-cycle cap:
+       ├── GuardrailService.evaluate(proposal)    ← the SAME guardrail a human faces
+       ├── if flagged: ExplainerService.explain() ← only on the interesting ones
+       ├── journal.add_entry(source=agent, signal_reason=...)
+       │
+       ├── flagged   → journal.mark_blocked()     ← the agent has NO override
+       │                and the cap is not consumed
+       └── approved  → alpaca.submit_order()
+                       journal.mark_executed()
+       ▼
+5. Record the cycle result; the loop sleeps until the next interval
+```
+
+Two things to hold onto:
+
+- **A flagged trade is not executed and nobody is asked.** That asymmetry with
+  the human path is deliberate (ADR-015).
+- **Blocked entries keep their price**, which is what makes
+  `compute_guardrail_impact` able to answer "what would it have done?" later.
+
+The loop itself is an `asyncio.Task` started from `main.py`'s `lifespan` and
+stopped on shutdown. A failing cycle is caught, recorded on
+`AgentStatus.last_error`, and the loop continues — one bad Alpaca response must
+not end the trading session.
+
 ## Invariants
 
 These are load-bearing. A change that breaks one is a bug even if tests pass.
@@ -120,6 +164,12 @@ These are load-bearing. A change that breaks one is a bug even if tests pass.
 | I-10 | Only `alpaca_client.py` imports `httpx`; only `explainer.py` imports `groq` | grep |
 | I-11 | Template and static paths resolve from `__file__`, not cwd | `main.py`, `api/ui.py` |
 | I-12 | No route constructs a service | `core/dependencies.py` |
+| I-13 | The agent has no override — a flagged agent trade never reaches Alpaca | `agent.py` |
+| I-14 | The agent trades only when the market is open; an unavailable clock counts as closed | `get_clock()` returns `is_open: False` on failure |
+| I-15 | `MomentumStrategy` makes no network calls | imports only schemas + stdlib |
+| I-16 | A blocked entry is never also executed or cancelled | `mark_blocked` clears the others |
+| I-17 | One bad cycle never kills the loop | `_loop()` catches every exception |
+| I-18 | No fabricated market data — no bars means no signal, no price means the rule stands down | `strategy.py`, `_resolve_price()` |
 
 ## State and lifecycle
 

@@ -1,0 +1,29 @@
+{# Movers. A table, not a chart: >7 rows of a single measure reads better as
+   aligned numbers. Every change carries an arrow AND a sign, so red/green —
+   the worst pair for colourblind readers — never carries meaning alone. #}
+<table class="table">
+  <thead>
+    <tr>
+      <th>Symbol</th>
+      <th class="num">Price</th>
+      <th class="num">Change</th>
+      <th class="num">%</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in rows %}
+    <tr>
+      <td class="sym">{{ m.symbol }}</td>
+      <td class="num">${{ "%.2f"|format(m.price) }}</td>
+      <td class="num delta {{ 'pos' if m.percent_change >= 0 else 'neg' }}">
+        {{ "+" if m.change >= 0 }}{{ "%.2f"|format(m.change) }}
+      </td>
+      <td class="num delta {{ 'pos' if m.percent_change >= 0 else 'neg' }}">
+        <span class="arrow">{{ "▲" if m.percent_change >= 0 else "▼" }}</span>{{ "+" if m.percent_change >= 0 }}{{ "%.2f"|format(m.percent_change) }}%
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="table-empty">Nothing to show.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>

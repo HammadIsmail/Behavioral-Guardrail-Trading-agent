@@ -1,0 +1,47 @@
+<div class="card-head">
+  <h2>Alpaca connection</h2>
+  <span class="spacer"></span>
+  <span class="pill {{ 'executed' if alpaca_has_keys else 'cancelled' }}">
+    {{ "connected" if alpaca_has_keys else "not connected" }}
+  </span>
+</div>
+
+<p class="card-sub">
+  Paste your own paper-trading API key and secret. They are stored per-user and
+  used for your agent and manual trades, not shared from the environment.
+</p>
+
+<form
+  hx-post="/fragments/settings/alpaca"
+  hx-target="#alpaca-connection"
+  hx-swap="innerHTML"
+  hx-disabled-elt="find fieldset"
+  hx-sync="this:drop"
+>
+  <fieldset>
+    <div class="form-group">
+      <label for="alpaca-api-key">Alpaca API key</label>
+      <input type="password" id="alpaca-api-key" name="alpaca_api_key"
+             value="{{ alpaca_api_hint }}" autocomplete="off"
+             placeholder="PK…" />
+    </div>
+    <div class="form-group">
+      <label for="alpaca-secret-key">Alpaca secret key</label>
+      <input type="password" id="alpaca-secret-key" name="alpaca_secret_key"
+             value="{{ alpaca_secret_hint }}" autocomplete="off"
+             placeholder="…" />
+    </div>
+    <button class="btn-primary" type="submit">
+      <span class="btn-spinner" aria-hidden="true"></span>
+      <span class="btn-label">Save credentials</span>
+    </button>
+    {% if saved %}
+      <span class="pending-note ok">Saved.</span>
+    {% endif %}
+  </fieldset>
+</form>
+
+<div class="gap-note">
+  Credentials are stored in the same database as your journal. Keys never appear
+  in full once saved — only a masked prefix is shown back.
+</div>
