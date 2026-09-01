@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: alpaca-guardrail
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: starter
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALPACA_API_KEY
+        sync: false
+      - key: ALPACA_SECRET_KEY
+        sync: false
+      - key: ALPACA_BASE_URL
+        value: https://paper-api.alpaca.markets
+      - key: ALPACA_DATA_URL
+        value: https://data.alpaca.markets
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+      - key: AGENT_ENABLED
+        value: "true"
+      - key: AGENT_INTERVAL_SECONDS
+        value: "900"
+      - key: AGENT_MAX_TRADES_PER_CYCLE
+        value: "3"
+      - key: AGENT_UNIVERSE
+        value: AAPL,MSFT,NVDA,AMZN,GOOGL,META,TSLA,AMD,NFLX,JPM
+      - key: DATABASE_URL
+        fromDatabase:
+          name: alpaca-guardrail-db
+          property: connectionString
+
+databases:
+  - name: alpaca-guardrail-db
+    plan: free
