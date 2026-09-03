@@ -286,7 +286,7 @@ async def page_settings(
     request: Request,
     user: UserInDB | None = Depends(get_current_user_optional),
     journal: JournalService = Depends(get_journal_service),
-    agent: AgentService = Depends(get_agent_service),
+    agent: AgentService = Depends(get_agent_for_user),
     strategy: StrategyService = Depends(get_strategy_service),
     settings: Settings = Depends(get_settings),
 ):
@@ -707,3 +707,20 @@ async def fragment_decisions(
             "summary": journal.get_summary(),
         },
     )
+
+
+@router.post("/fragments/settings/agent-interval", response_class=HTMLResponse)
+async def fragment_agent_interval(
+    request: Request,
+    interval_minutes: int = Form(...),
+    user: UserInDB = Depends(get_current_user),
+    manager: UserAgentManager = Depends(get_user_agent_manager),
+):
+    if interval_minutes < 1:
+        return HTMLResponse("Interval must be at least 1 minute", status_code=400)
+    interval_seconds = interval_minutes * 60
+    # Get current settings from user object
+    new_settings = user.settings.model_copy()
+    new_settings.agent_interval_seconds = interval_seconds
+    manager.update_settings(user.id, new_settings)
+    return HTMLResponse(f"Updated to {interval_minutes} min")

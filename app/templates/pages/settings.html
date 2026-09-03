@@ -14,6 +14,13 @@
     </p>
     <div id="auto-trade">{% include "partials/auto_trade.html" %}</div>
 
+    <div style="margin-top: 16px;">
+      <label for="interval_minutes" style="display: inline-block; margin-right: 8px;">Cycle interval (minutes):</label>
+      <input type="number" id="interval_minutes" name="interval_minutes" value="{{ agent.interval_seconds // 60 }}" min="1" max="1440" style="width: 80px;" />
+      <button class="btn-primary" hx-post="/fragments/settings/agent-interval" hx-include="#interval_minutes" hx-target="#interval-status" hx-swap="innerHTML">Update</button>
+      <span id="interval-status"></span>
+    </div>
+
     <div class="gap-note">
       Turning it off stops the loop only. Your journal, behaviour gap and guardrail
       figures are untouched and keep reading correctly.
