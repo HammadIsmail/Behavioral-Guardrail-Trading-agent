@@ -27,6 +27,7 @@ from fastapi.templating import Jinja2Templates
 from app.core.config import Settings, get_settings
 from app.core.dependencies import (
     get_agent_service,
+    get_agent_for_user,
     get_alpaca_client,
     get_behavior_gap_service,
     get_chat_service,
